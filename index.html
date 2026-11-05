@@ -2521,11 +2521,11 @@ $('adminBox').addEventListener('submit', async (e) => {
   const code = $('adminCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!crypto.subtle) { $('adminMsg').textContent = 'Здесь вход недоступен — открой игру по ссылке.'; return; }
   if (await sha256(code) !== ADMIN_HASH) { $('adminMsg').textContent = 'Неверный код.'; $('adminCode').select(); return; }
-  isAdmin = true; store.set('echo_admin', true);
+  isAdmin = true; store.set('echo_admin', true); exposeDebug();
   sfx.win(); renderLevels();
 });
 $('adminExit').onclick = () => {
-  sfx.click(); isAdmin = false; store.set('echo_admin', false);
+  sfx.click(); isAdmin = false; store.set('echo_admin', false); exposeDebug();
   dbg.god = dbg.see = dbg.fast = false;
   renderLevels();
 };
@@ -2987,7 +2987,14 @@ applyQuality();
 fillBindLabels();
 { const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
 frame();
-window.__echo = { A, initAudio, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+// Отладочный доступ из консоли (window.__echo) — только у админа и в локальной копии игры;
+// у обычных игроков на сайте его нет.
+const debugApi = () => ({ A, initAudio, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } });
+function exposeDebug() {
+  if (isAdmin || location.protocol === "file:" || location.protocol === "data:") window.__echo = debugApi();
+  else delete window.__echo;
+}
+exposeDebug();
 </script>
 </body>
 </html>
