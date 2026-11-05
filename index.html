@@ -339,7 +339,7 @@
     <p><b>Приманка</b> (<span data-bind="decoy"></span>) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
     <p><b>Водомёт</b> (<span data-bind="water"></span>) появляется с 3-го уровня. В нём один заряд: струя летит в сторону курсора и, попав в Охотника, замыкает его на 4,5 секунды. Пока он искрит, он виден и не опасен. Брызги шумят — их слышат остальные. Можно нести до двух водомётов.</p>
     <p><b>Подкрепление</b> с 6-го уровня: за каждую подобранную ячейку где-то далеко просыпается ещё один Охотник.</p>
-    <p><b>Шкафы</b> с 2-го уровня: присядь (<span data-bind="crouch"></span>) рядом со шкафом — спрячешься. Внутри тебя не видно и Охотник пройдёт мимо. Но страх растёт быстрее, и если сердце застучит рядом с Охотником, он заглянет в шкаф. Двинься — и вылезешь.</p>
+    <p><b>Шкафы</b> с 2-го уровня: присядь (<span data-bind="crouch"></span>) рядом со шкафом — спрячешься. Внутри тебя не видно, сердце быстро успокаивается, и стенки глушат его стук. Охотник заглянет в шкаф, только если залезть прямо у него на глазах (ближе 2 м) или если сердце застучит при сильной панике. Двинься — и вылезешь.</p>
     <p><b>Двери</b> с 5-го уровня открываются сами, когда подходишь, и закрываются за спиной. Закрытая дверь закрывает обзор, а Охотнику приходится её выламывать — это громко и занимает пару секунд.</p>
     <p><b>Блэкаут</b> с 8-го уровня: иногда свет мигает и гаснет секунд на двадцать. Тогда виден только круг света вокруг робота, а сонар ненадолго освещает стены.</p>
     <p><b>Робот</b> в главном меню: раскраски для ЭХО-01 открываются звёздами за уровни.</p>
@@ -385,6 +385,7 @@
       <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
       <div class="opt touchOnly"><span>Бег со стика <small class="optNote" id="optRunAtVal"></small></span><input type="range" id="optRunAt" min="60" max="100" step="5"></div>
       <div class="opt"><span>Громкость</span><input type="range" id="optVol" min="0" max="100"></div>
+      <div class="opt"><span>Музыка в меню</span><input type="range" id="optMusic" min="0" max="100"></div>
       <div class="opt"><span>Графика <small class="optNote" id="optQualityNote">(подбирается сама)</small></span>
         <div class="seg" id="optQuality"><button data-q="low">Низкая</button><button data-q="medium">Средняя</button><button data-q="high">Высокая</button></div></div>
       <div class="opt"><span>Эффект миниатюры <small class="optNote">(при высокой графике)</small></span><button class="tog" id="optTilt"></button></div>
@@ -513,7 +514,7 @@ const savedSettings = store.get('echo_settings', {});
 // раньше была только галочка «Тени» — выключенные тени превращаются в низкое качество
 if (!savedSettings.quality && savedSettings.shadows === false) { savedSettings.quality = 'low'; savedSettings.qualityAuto = false; }
 // qualityAuto: пока игрок сам не выбрал графику, игра снижает её, если кадров мало
-const settings = Object.assign({ volume: 80, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
+const settings = Object.assign({ volume: 80, music: 60, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
   shake: true, hints: true, ...JOY_DEFAULT }, savedSettings);
 delete settings.shadows;
 
@@ -905,12 +906,67 @@ function initAudio() {
   const lp = ctx.createBiquadFilter(); lp.frequency.value = 2400;
   delay.connect(lp); lp.connect(fb); fb.connect(delay); lp.connect(A.master);
   A.echo = ctx.createGain(); A.echo.gain.value = 0.5; A.echo.connect(delay);
-  const drone = ctx.createGain(); drone.gain.value = 0.035; drone.connect(A.master);
-  const dlp = ctx.createBiquadFilter(); dlp.frequency.value = 220; dlp.connect(drone);
+  // фоновый гул — только во время уровня (в меню его заменяет музыка)
+  A.drone = ctx.createGain(); A.drone.gain.value = 0; A.drone.connect(A.master);
+  const dlp = ctx.createBiquadFilter(); dlp.frequency.value = 220; dlp.connect(A.drone);
   for (const f of [55, 55.5, 82.6]) { const o = ctx.createOscillator(); o.frequency.value = f; o.connect(dlp); o.start(); }
   A.tension = ctx.createGain(); A.tension.gain.value = 0; A.tension.connect(A.master);
   const tlp = ctx.createBiquadFilter(); tlp.frequency.value = 650; tlp.connect(A.tension);
   for (const f of [110, 116.4]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(tlp); o.start(); }
+  // шина музыки меню: мягкий фильтр + своё длинное эхо
+  A.music = ctx.createGain(); A.music.gain.value = 0; A.music.connect(A.master);
+  A.musicIn = ctx.createBiquadFilter(); A.musicIn.type = 'lowpass'; A.musicIn.frequency.value = 2600; A.musicIn.connect(A.music);
+  const md = ctx.createDelay(2); md.delayTime.value = 0.48;
+  const mfb = ctx.createGain(); mfb.gain.value = 0.42;
+  const mlp = ctx.createBiquadFilter(); mlp.frequency.value = 1600;
+  md.connect(mlp); mlp.connect(mfb); mfb.connect(md); mlp.connect(A.music);
+  A.musicEcho = ctx.createGain(); A.musicEcho.gain.value = 0.55; A.musicEcho.connect(md);
+}
+
+// ---- спокойная музыка меню: медленные аккорды Cmaj7 → Am7 → Fmaj7 → G6 и редкие ноты пентатоники ----
+const MUSIC = {
+  chords: [[130.81, 164.81, 196.0, 246.94], [110.0, 130.81, 164.81, 196.0], [87.31, 110.0, 130.81, 164.81], [98.0, 146.83, 164.81, 246.94]],
+  notes: [[261.63, 329.63, 392.0, 493.88, 523.25], [220.0, 261.63, 329.63, 392.0, 440.0], [261.63, 349.23, 440.0, 523.25, 659.26], [293.66, 392.0, 493.88, 587.33, 659.26]],
+  bar: 5.4, step: 0.675, nextBar: 0, nextNote: 0, chord: 0,
+};
+function musicVoice(f, type, t, a, hold, r, vol, echo) {
+  const o = A.ctx.createOscillator(); o.type = type; o.frequency.value = f;
+  const g = A.ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + a);
+  g.gain.setValueAtTime(vol, t + a + hold);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + r);
+  o.connect(g); g.connect(A.musicIn); if (echo) g.connect(A.musicEcho);
+  o.start(t); o.stop(t + a + hold + r + 0.05);
+}
+function updateMusic(dt) {
+  if (!A.ctx || A.ctx.state !== 'running') return;
+  const inMenu = state === 'menu' || state === 'over' || state === 'won';
+  const inLevel = state === 'playing' || state === 'paused' || state === 'dead';
+  const k = Math.min(1, dt * 1.5);
+  A.music.gain.value += ((inMenu ? 0.9 * settings.music / 100 : 0) - A.music.gain.value) * k;
+  A.drone.gain.value += ((inLevel ? 0.035 : 0) - A.drone.gain.value) * k;
+  if (A.music.gain.value < 0.01 && !inMenu) { MUSIC.nextBar = 0; return; }
+  const now = A.ctx.currentTime;
+  if (MUSIC.nextBar < now) { MUSIC.nextBar = now + 0.1; MUSIC.nextNote = MUSIC.nextBar; }
+  // планируем звуки чуть вперёд, чтобы ритм не зависел от кадров
+  while (MUSIC.nextBar < now + 0.3) {
+    for (const f of MUSIC.chords[MUSIC.chord]) {
+      musicVoice(f, 'sine', MUSIC.nextBar, 1.8, MUSIC.bar - 2.2, 2.8, 0.03, false);
+      musicVoice(f * 2.003, 'triangle', MUSIC.nextBar, 2.2, MUSIC.bar - 2.6, 2.6, 0.008, false);
+    }
+    MUSIC.curNotes = MUSIC.notes[MUSIC.chord];
+    MUSIC.chord = (MUSIC.chord + 1) % MUSIC.chords.length;
+    MUSIC.nextBar += MUSIC.bar;
+  }
+  while (MUSIC.nextNote < now + 0.3) {
+    if (MUSIC.curNotes && Math.random() < 0.5) {
+      const f = MUSIC.curNotes[Math.random() * MUSIC.curNotes.length | 0];
+      musicVoice(f, 'sine', MUSIC.nextNote, 0.012, 0.05, 1.6, 0.045, true);
+      musicVoice(f * 2, 'sine', MUSIC.nextNote, 0.01, 0.02, 0.6, 0.008, true);
+    }
+    MUSIC.nextNote += MUSIC.step;
+  }
 }
 function env(g, t, a, peak, dec) {
   g.gain.setValueAtTime(0.0001, t);
@@ -1415,15 +1471,18 @@ function nearestLocker() {
 }
 function enterLocker(l) {
   player.hidden = l; l.openT = 0.35;
+  player.panic = Math.max(0, player.panic - 15);   // спрятался — сразу чуть легче
   player.x = l.fx; player.z = l.fz;
   player.charging = false; sonarHeld = false;
-  sfx.creak(l.x, l.z, 0.8); emitRing(l.x, l.z, 2.5, 'door');
-  showMsg('ТЫ В ШКАФУ — ЗАМРИ. ДВИНЬСЯ, ЧТОБЫ ВЫЙТИ', 2.5);
+  // залезаешь тихо; выдаст только Охотник, который в этот момент видит тебя вплотную
+  sfx.creak(l.x, l.z, 0.4);
+  for (const h of hunters) if (h.sees && Math.hypot(h.x - l.fx, h.z - l.fz) < 2) h.checkLocker = l;
+  showMsg('ТЫ В ШКАФУ — ЗАМРИ, СЕРДЦЕ УСПОКОИТСЯ', 2.5);
 }
 function exitLocker() {
   const l = player.hidden; if (!l) return;
   player.hidden = null; l.openT = 0.35;
-  sfx.creak(l.x, l.z, 0.8); emitRing(l.x, l.z, 2.5, 'door');
+  sfx.creak(l.x, l.z, 0.8); emitRing(l.x, l.z, 1.5, 'door');
   for (const h of hunters) h.checkLocker = null;
 }
 
@@ -2165,8 +2224,9 @@ function updatePlayer(dt) {
   const near = Math.max(0, 1 - dist / 10);
   const chased = hunters.some(h => h.state === 'chase');
   // в шкафу безопасно, но тесно: страх растёт быстрее, а успокаиваться труднее
-  const rise = (near * near * 55 + (chased ? 10 : 0) + (running ? 5 : 0)) * (player.hidden ? 1.6 : 1);
-  const calm = player.hidden ? 8 : player.crouch && !moving ? 22 : !moving ? 12 : player.crouch ? 9 : 5;
+  // в шкафу безопасно: страх почти не растёт и быстро спадает
+  const rise = (near * near * 55 + (chased ? 10 : 0) + (running ? 5 : 0)) * (player.hidden ? 0.3 : 1);
+  const calm = player.hidden ? 35 : player.crouch && !moving ? 22 : !moving ? 12 : player.crouch ? 9 : 5;
   player.panic = clamp(player.panic + (rise - calm) * dt, 0, 100);
   player.bpm = 65 + player.panic * 0.95;
   player.heartT += dt * player.bpm / 60;
@@ -2174,7 +2234,8 @@ function updatePlayer(dt) {
     player.heartT -= 1;
     sfx.heart(0.03 + player.panic / 100 * 0.3);
     $('hHeart').classList.add('beat'); setTimeout(() => $('hHeart').classList.remove('beat'), 110);
-    if (player.panic > 70) emitRing(player.x, player.z, 1.5 + (player.panic - 70) / 30 * 3, 'heart');
+    // стенки шкафа глушат сердце: круги только при сильной панике и в 2,5 раза меньше
+    if (player.hidden ? player.panic > 95 : player.panic > 70) emitRing(player.x, player.z, (1.5 + (player.panic - 70) / 30 * 3) * (player.hidden ? 0.4 : 1), 'heart');
   }
   if (A.tension) A.tension.gain.value += ((chased ? 0.045 : near * 0.025) - A.tension.gain.value) * Math.min(1, dt * 2);
 
@@ -2540,6 +2601,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 function saveSettings() { store.set('echo_settings', settings); }
 function syncSettingsUI() {
   $('optVol').value = settings.volume;
+  $('optMusic').value = settings.music;
   document.querySelectorAll('#optQuality button').forEach(b => b.classList.toggle('on', b.dataset.q === settings.quality));
   $('optTilt').classList.toggle('on', settings.tilt);
   $('optQualityNote').hidden = !settings.qualityAuto;
@@ -2619,6 +2681,7 @@ $('optJoyEdit').onclick = () => { sfx.click(); show('layout'); };
 $('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings'); };
 $('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
 $('optVol').oninput = (e) => { settings.volume = +e.target.value; if (A.master) A.master.gain.value = settings.volume / 100; saveSettings(); };
+$('optMusic').oninput = (e) => { initAudio(); settings.music = +e.target.value; saveSettings(); };
 document.querySelectorAll('#optQuality button').forEach(b => b.onclick = () => {
   sfx.click(); settings.quality = b.dataset.q; settings.qualityAuto = false; applyQuality(); syncSettingsUI(); saveSettings();
 });
@@ -2670,6 +2733,9 @@ addEventListener('keyup', (e) => {
 });
 // кнопки мыши — тоже «клавиши»: Mouse0, Mouse1, Mouse2…
 let lastTouch = 0;
+// звук (и музыка меню) включается с первого нажатия — раньше браузер его не разрешает
+const wakeAudio = () => { initAudio(); removeEventListener('pointerdown', wakeAudio, true); removeEventListener('keydown', wakeAudio, true); };
+addEventListener('pointerdown', wakeAudio, true); addEventListener('keydown', wakeAudio, true);
 addEventListener('touchstart', () => { lastTouch = performance.now(); }, { passive: true, capture: true });
 canvas.addEventListener('mousedown', (e) => {
   if (performance.now() - lastTouch < 800) return;   // мышиные события, которые браузер шлёт после касания
@@ -2851,6 +2917,7 @@ function watchPerf(dt) {
   showMsg(`ГРАФИКА СНИЖЕНА ДО ${settings.quality === 'medium' ? 'СРЕДНЕЙ' : 'НИЗКОЙ'} — ТАК ПЛАВНЕЕ`, 3);
 }
 function tick(dt) {
+  updateMusic(dt);
   time += dt;
   if (state === 'playing') {
     playTime += dt;
