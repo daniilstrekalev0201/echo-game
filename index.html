@@ -915,7 +915,9 @@ function initAudio() {
   for (const f of [110, 116.4]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(tlp); o.start(); }
   // шина музыки меню: мягкий фильтр + своё длинное эхо
   A.music = ctx.createGain(); A.music.gain.value = 0; A.music.connect(A.master);
-  A.musicIn = ctx.createBiquadFilter(); A.musicIn.type = 'lowpass'; A.musicIn.frequency.value = 2600; A.musicIn.connect(A.music);
+  // компрессор выравнивает громкость, чтобы мелодию было слышно и на маленьких динамиках
+  const mcomp = ctx.createDynamicsCompressor(); mcomp.threshold.value = -18; mcomp.ratio.value = 3; mcomp.connect(A.music);
+  A.musicIn = ctx.createBiquadFilter(); A.musicIn.type = 'lowpass'; A.musicIn.frequency.value = 4200; A.musicIn.connect(mcomp);
   const md = ctx.createDelay(2); md.delayTime.value = 0.48;
   const mfb = ctx.createGain(); mfb.gain.value = 0.42;
   const mlp = ctx.createBiquadFilter(); mlp.frequency.value = 1600;
@@ -944,7 +946,7 @@ function updateMusic(dt) {
   const inMenu = state === 'menu' || state === 'over' || state === 'won';
   const inLevel = state === 'playing' || state === 'paused' || state === 'dead';
   const k = Math.min(1, dt * 1.5);
-  A.music.gain.value += ((inMenu ? 0.9 * settings.music / 100 : 0) - A.music.gain.value) * k;
+  A.music.gain.value += ((inMenu ? settings.music / 100 : 0) - A.music.gain.value) * k;
   A.drone.gain.value += ((inLevel ? 0.035 : 0) - A.drone.gain.value) * k;
   if (A.music.gain.value < 0.01 && !inMenu) { MUSIC.nextBar = 0; return; }
   const now = A.ctx.currentTime;
@@ -952,18 +954,18 @@ function updateMusic(dt) {
   // планируем звуки чуть вперёд, чтобы ритм не зависел от кадров
   while (MUSIC.nextBar < now + 0.3) {
     for (const f of MUSIC.chords[MUSIC.chord]) {
-      musicVoice(f, 'sine', MUSIC.nextBar, 1.8, MUSIC.bar - 2.2, 2.8, 0.03, false);
-      musicVoice(f * 2.003, 'triangle', MUSIC.nextBar, 2.2, MUSIC.bar - 2.6, 2.6, 0.008, false);
+      musicVoice(f * 2, 'triangle', MUSIC.nextBar, 1.4, MUSIC.bar - 1.8, 2.6, 0.055, false);
+      musicVoice(f * 4.006, 'sine', MUSIC.nextBar, 1.8, MUSIC.bar - 2.2, 2.4, 0.012, false);
     }
     MUSIC.curNotes = MUSIC.notes[MUSIC.chord];
     MUSIC.chord = (MUSIC.chord + 1) % MUSIC.chords.length;
     MUSIC.nextBar += MUSIC.bar;
   }
   while (MUSIC.nextNote < now + 0.3) {
-    if (MUSIC.curNotes && Math.random() < 0.5) {
+    if (MUSIC.curNotes && Math.random() < 0.65) {
       const f = MUSIC.curNotes[Math.random() * MUSIC.curNotes.length | 0];
-      musicVoice(f, 'sine', MUSIC.nextNote, 0.012, 0.05, 1.6, 0.045, true);
-      musicVoice(f * 2, 'sine', MUSIC.nextNote, 0.01, 0.02, 0.6, 0.008, true);
+      musicVoice(f * 2, 'sine', MUSIC.nextNote, 0.01, 0.06, 1.8, 0.16, true);
+      musicVoice(f * 4, 'sine', MUSIC.nextNote, 0.008, 0.02, 0.7, 0.035, true);
     }
     MUSIC.nextNote += MUSIC.step;
   }
@@ -2734,7 +2736,11 @@ addEventListener('keyup', (e) => {
 // кнопки мыши — тоже «клавиши»: Mouse0, Mouse1, Mouse2…
 let lastTouch = 0;
 // звук (и музыка меню) включается с первого нажатия — раньше браузер его не разрешает
-const wakeAudio = () => { initAudio(); removeEventListener('pointerdown', wakeAudio, true); removeEventListener('keydown', wakeAudio, true); };
+const wakeAudio = () => {
+  // на iPhone звук страницы иначе глушится переключателем «без звука»
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
+  initAudio(); removeEventListener('pointerdown', wakeAudio, true); removeEventListener('keydown', wakeAudio, true);
+};
 addEventListener('pointerdown', wakeAudio, true); addEventListener('keydown', wakeAudio, true);
 addEventListener('touchstart', () => { lastTouch = performance.now(); }, { passive: true, capture: true });
 canvas.addEventListener('mousedown', (e) => {
@@ -2981,7 +2987,7 @@ applyQuality();
 fillBindLabels();
 { const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
 frame();
-window.__echo = { player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+window.__echo = { A, initAudio, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
 </body>
 </html>
