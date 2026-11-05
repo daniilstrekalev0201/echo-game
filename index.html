@@ -198,6 +198,8 @@
   .tab.on { border-color: var(--ink); color: var(--ink); }
   .rules p { line-height: 1.5; margin-bottom: 10px; font-size: 15px; }
   .rules b { color: var(--orange); }
+  .rules .credits { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; color: var(--dim); }
+  .rules .credits b { color: var(--ink); }
   .rule { border-left: 4px solid var(--orange); background: #fff; padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 14px; font-size: 16px; line-height: 1.45; }
   .stars { font-size: 46px; color: var(--orange); letter-spacing: 0.1em; margin: 6px 0; }
   .stars .e { color: var(--line); }
@@ -343,6 +345,7 @@
     <p><b>Двери</b> с 5-го уровня открываются сами, когда подходишь, и закрываются за спиной. Закрытая дверь закрывает обзор, а Охотнику приходится её выламывать — это громко и занимает пару секунд.</p>
     <p><b>Блэкаут</b> с 8-го уровня: иногда свет мигает и гаснет секунд на двадцать. Тогда виден только круг света вокруг робота, а сонар ненадолго освещает стены.</p>
     <p><b>Робот</b> в главном меню: раскраски для ЭХО-01 открываются звёздами за уровни.</p>
+    <p class="credits">Об игре: ЭХО сделана на <b>three.js</b> (лицензия MIT), шрифт <b>Barlow</b> (SIL OFL 1.1). Модели, звуки и музыка созданы в коде игры.</p>
     <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (<span data-bind="crouch"></span>) и замри, чтобы успокоиться.</p>
     <p><b>Бег</b> громкий, <b>ходьба</b> тихая, <b>присед</b> беззвучный.</p>
     <p class="touchOnly"><b>На телефоне:</b> тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.</p>
@@ -719,10 +722,10 @@ const compMat = new THREE.ShaderMaterial({
 });
 const post = {
   enabled: false, rt: null, a: null, b: null,
-  resize() {
+  resize(cw, ch) {
     for (const k of ['rt', 'a', 'b']) if (this[k]) { this[k].dispose(); this[k] = null; }
     if (!this.enabled) return;
-    const pr = renderer.getPixelRatio(), w = Math.max(1, Math.floor(innerWidth * pr)), h = Math.max(1, Math.floor(innerHeight * pr));
+    const pr = renderer.getPixelRatio(), w = cw || Math.max(1, Math.floor(innerWidth * pr)), h = ch || Math.max(1, Math.floor(innerHeight * pr));
     this.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: 4 });
     const hw = Math.max(1, w >> 2), hh = Math.max(1, h >> 2);
     this.a = new THREE.WebGLRenderTarget(hw, hh, { type: THREE.HalfFloatType, depthBuffer: false });
@@ -2987,11 +2990,24 @@ applyQuality();
 fillBindLabels();
 { const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
 frame();
+// Снимок кадра нужного размера без интерфейса (для обложки и скриншотов страницы игры)
+function snapshot(w, h, type = 'image/jpeg') {
+  const pr = renderer.getPixelRatio();
+  renderer.setPixelRatio(1); renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  post.resize(w, h);
+  updateCamera(0); render();
+  const url = renderer.domElement.toDataURL(type, 0.92);
+  renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  post.resize();
+  return url;
+}
 // Отладочный доступ из консоли (window.__echo) — только у админа и в локальной копии игры;
 // у обычных игроков на сайте его нет.
-const debugApi = () => ({ A, initAudio, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } });
+const debugApi = () => ({ A, initAudio, capture: snapshot, emitRing, stunHunter, cam, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } });
 function exposeDebug() {
-  if (isAdmin || location.protocol === "file:" || location.protocol === "data:") window.__echo = debugApi();
+  if (isAdmin || location.protocol === "file:" || location.protocol === "data:" || ["localhost", "127.0.0.1"].includes(location.hostname)) window.__echo = debugApi();
   else delete window.__echo;
 }
 exposeDebug();
