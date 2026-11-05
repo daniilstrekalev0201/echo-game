@@ -115,6 +115,15 @@
   .lvl .st { font-size: 20px; color: var(--orange); margin-top: 8px; letter-spacing: 0.1em; }
   .lvl .st .e { color: var(--line); }
   .lvl .bt { font-size: 13px; color: var(--dim); }
+  #lvlTitle { user-select: none; }
+  .adminBadge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ink);
+    color: #fff; font-size: 14px; letter-spacing: 0.08em; }
+  .adminBox { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
+  .adminBox[hidden] { display: none; }
+  .adminBox input { flex: 1 1 180px; min-width: 0; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px;
+    font: 600 18px "Barlow Condensed", sans-serif; letter-spacing: 0.12em; text-transform: uppercase; background: #fff; color: var(--ink); }
+  .adminBox input:focus { outline: none; border-color: var(--orange); }
+  .adminMsg { flex-basis: 100%; font-size: 14px; color: var(--red); min-height: 18px; }
   .lvl .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   .lvl .tg { font: 600 11px "Barlow Condensed", sans-serif; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px;
     border-radius: 4px; background: #ecece8; color: #77776f; }
@@ -277,8 +286,14 @@
 
 <div id="levels" class="overlay hidden">
   <div class="panel">
-    <h2>Уровни</h2>
+    <h2 id="lvlTitle">Уровни <span id="adminBadge" class="adminBadge" hidden>Админ</span></h2>
     <div class="lvlGrid" id="lvlGrid"></div>
+    <form id="adminBox" class="adminBox" hidden>
+      <input id="adminCode" type="password" placeholder="Код администратора" autocomplete="off" aria-label="Код администратора">
+      <button class="b" type="submit">Войти</button>
+      <span id="adminMsg" class="adminMsg" aria-live="polite"></span>
+    </form>
+    <button class="b" id="adminExit" hidden style="font-size:15px;padding:8px 14px;margin-top:14px">Выйти из режима админа</button>
     <button class="b back" data-go="mainMenu">← Назад</button>
   </div>
 </div>
@@ -2068,7 +2083,7 @@ function show(id) {
 function renderLevels() {
   const gEl = $('lvlGrid'); gEl.innerHTML = '';
   LEVELS.forEach((lv, i) => {
-    const locked = i + 1 > progress.unlocked, rec = progress.levels[i];
+    const locked = !isAdmin && i + 1 > progress.unlocked, rec = progress.levels[i];
     const b = document.createElement('button');
     b.className = 'lvl' + (locked ? ' locked' : '');
     const st = rec ? rec.stars : 0;
@@ -2079,7 +2094,39 @@ function renderLevels() {
     if (!locked) b.onclick = () => { sfx.click(); startLevel(i); };
     gEl.appendChild(b);
   });
+  $('adminBadge').hidden = !isAdmin;
+  $('adminExit').hidden = !isAdmin;
+  $('adminBox').hidden = true;
 }
+
+// ---- режим администратора: открывает все уровни (звёзды за пройденные записываются как обычно) ----
+// Вход спрятан: 5 быстрых нажатий на заголовок «Уровни». В коде лежит только SHA-256 от кода,
+// сам код в исходниках не виден. Это защита от случайных игроков, а не от взлома: игра целиком в браузере.
+const ADMIN_HASH = '12ab2365b5d9695b1352e6233efe6cf88873bbf23ca32ef62ceabf65fa715018';
+let isAdmin = store.get('echo_admin', false) === true;
+let titleTaps = [];
+$('lvlTitle').addEventListener('click', () => {
+  const now = performance.now();
+  titleTaps = titleTaps.filter(t => now - t < 2000).concat(now);
+  if (titleTaps.length >= 5 && !isAdmin) {
+    titleTaps = [];
+    $('adminBox').hidden = false; $('adminMsg').textContent = ''; $('adminCode').value = '';
+    $('adminCode').focus();
+  }
+});
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+$('adminBox').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const code = $('adminCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!crypto.subtle) { $('adminMsg').textContent = 'Здесь вход недоступен — открой игру по ссылке.'; return; }
+  if (await sha256(code) !== ADMIN_HASH) { $('adminMsg').textContent = 'Неверный код.'; $('adminCode').select(); return; }
+  isAdmin = true; store.set('echo_admin', true);
+  sfx.win(); renderLevels();
+});
+$('adminExit').onclick = () => { sfx.click(); isAdmin = false; store.set('echo_admin', false); renderLevels(); };
 function startLevel(i) {
   initAudio();
   levelIdx = i;
