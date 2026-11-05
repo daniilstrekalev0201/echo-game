@@ -149,20 +149,43 @@
   body.touch .keyOnly { display: none !important; }
   body.touch .icard { pointer-events: auto; cursor: pointer; }
   body.touch .icard.held { box-shadow: 0 0 0 3px var(--orange); }
-  #cCrouch.on { background: rgba(242, 138, 30, 0.3); }
   body.touch #hPlayer { top: calc(76px + env(safe-area-inset-top, 0px)); bottom: auto; width: 170px; }
   body.touch .pname { font-size: 22px; margin-bottom: 5px; }
   body.touch .pbar { height: 10px; }
   body.touch #intro { top: calc(150px + env(safe-area-inset-top, 0px)); padding: 10px 18px; }
   body.touch #intro .t { font-size: 28px; }
   body.touch #intro .d { font-size: 14px; }
-  #joy { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; display: none;
-    border: 2px solid rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.3); box-shadow: 0 0 0 1px var(--line); }
-  #joyKnob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%;
-    background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+  /* стик стоит на месте; где именно — выбирает игрок в настройках (--js — масштаб) */
+  #joyWrap { position: fixed; left: 25%; top: 85%; width: calc(124px * var(--js, 1)); height: calc(124px * var(--js, 1));
+    transform: translate(-50%, -50%); display: none; z-index: 5; }
+  body.touch.showJoy #joyWrap { display: block; }
+  #joy { position: absolute; inset: 0; border-radius: 50%; touch-action: none;
+    border: 2px solid rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.32); box-shadow: 0 0 0 1px var(--line); }
+  #joy::before { content: ""; position: absolute; inset: -30%; border-radius: 50%; }
+  #joyKnob { position: absolute; left: 50%; top: 50%; width: 44%; height: 44%; transform: translate(-50%, -50%); border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); pointer-events: none; }
   #joy.run #joyKnob { background: var(--orange); }
-  #joyHint { position: absolute; left: 0; right: 0; text-align: center; bottom: calc(140px + env(safe-area-inset-bottom, 0px));
-    font-size: 15px; color: var(--ink); text-shadow: 0 1px 0 #fff; transition: opacity 0.5s; padding: 0 16px; }
+  #btnCrouch { position: absolute; left: calc(100% + 6px); top: -24%; width: calc(64px * var(--js, 1)); height: calc(64px * var(--js, 1));
+    border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.5); box-shadow: 0 0 0 1px var(--line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer;
+    font: 600 11px "Barlow Condensed", sans-serif; letter-spacing: 0.05em; color: #77776f; touch-action: none; }
+  #btnCrouch svg { width: 46%; height: 46%; }
+  #btnCrouch.on { background: var(--orange); border-color: var(--orange); color: #fff; }
+  #btnCrouch.on svg { stroke: #fff; }
+  body.joyRight #btnCrouch { left: auto; right: calc(100% + 6px); }
+  #joyHint { position: absolute; bottom: calc(100% + 22px); left: 0; white-space: nowrap; font-size: 15px; color: var(--ink);
+    text-shadow: 0 1px 0 #fff; transition: opacity 0.5s; pointer-events: none; }
+  body.joyRight #joyHint { left: auto; right: 0; }
+  body.touch.joyRight #hCards { right: auto; left: calc(24px + env(safe-area-inset-left, 0px)); }
+  /* редактор расположения */
+  #layout { background: rgba(232, 232, 228, 0.25); backdrop-filter: none; -webkit-backdrop-filter: none; align-items: flex-start;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+  #layout .panel { margin: 0 auto; padding: 16px 18px; }
+  #layout h2 { font-size: 26px; margin-bottom: 6px; }
+  #layout .sub { font-size: 14px; margin: 0 0 4px; }
+  #layout .row { margin-top: 10px; }
+  body.editing #joy, body.editing #btnCrouch { cursor: grab; box-shadow: 0 0 0 3px var(--orange); }
+  body.editing #joyHint { opacity: 0; }
   @media (max-width: 640px) { .title { font-size: 64px; } .panel { padding: 22px 18px; } #hPlayer { width: 180px; } .pname { font-size: 26px; }
     .icard { width: 76px; height: 92px; padding: 6px; } .icard svg { width: 40px; height: 40px; }
     .icard .nm { font-size: 12px; left: 7px; } .icard .num { font-size: 12px; left: 7px; bottom: 22px; }
@@ -182,8 +205,6 @@
       <button class="iconBtn" id="btnPause" title="Пауза (Esc)">II</button></div>
   </div>
   <div id="pings"></div>
-  <div id="joy"><div id="joyKnob"></div></div>
-  <div id="joyHint" class="touchOnly cond">Коснись и тяни — идти. До края — бег.</div>
   <div id="alert" class="cond"></div>
   <div id="msg" class="cond"></div>
   <div id="intro"><div class="n cond" id="iNum"></div><div class="t cond" id="iName"></div><div class="d" id="iText"></div></div>
@@ -201,10 +222,6 @@
       <svg viewBox="0 0 56 56" fill="none" stroke="#9a9a94" stroke-width="3" stroke-linecap="round">
         <circle cx="28" cy="30" r="13"/><path d="M15 30h26"/><path d="M28 10v-4M40 14l3-3M16 14l-3-3"/></svg>
       <div class="num cond">02</div><div class="nm cond">Приманка</div></div>
-    <div class="icard touchOnly" id="cCrouch">
-      <svg viewBox="0 0 56 56" fill="none" stroke="#9a9a94" stroke-width="3" stroke-linecap="round">
-        <circle cx="28" cy="18" r="7"/><path d="M28 25v12M18 47l10-10 10 10M16 32h24"/></svg>
-      <div class="num cond">03</div><div class="nm cond">Присесть</div></div>
   </div>
 </div>
 
@@ -239,7 +256,7 @@
     <p><b>Приманка</b> (ПКМ или F) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
     <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (C) и замри, чтобы успокоиться.</p>
     <p><b>Бег</b> громкий, <b>ходьба</b> тихая, <b>присед</b> беззвучный.</p>
-    <p class="touchOnly"><b>На телефоне:</b> коснись экрана и тяни — это джойстик, до края — бег. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. «Присесть» включается и выключается нажатием.</p>
+    <p class="touchOnly"><b>На телефоне:</b> тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.</p>
     <p>Собери все <b>энергоячейки</b> — откроется выход. После последней ячейки Охотники приходят в ярость.</p>
     <p><b>Звёзды:</b> ★ пройти уровень · ★ уложиться в норму времени · ★ ни разу не попасться на глаза.</p>
     <button class="b back" data-go="mainMenu">← Назад</button>
@@ -249,15 +266,15 @@
 <div id="settings" class="overlay hidden">
   <div class="panel">
     <h2>Настройки</h2>
-    <div class="tabs"><button class="tab on" data-tab="tControls">Управление</button><button class="tab" data-tab="tOptions">Звук и графика</button></div>
+    <div class="tabs"><button class="tab on" data-tab="tControls">Управление</button><button class="tab" data-tab="tOptions">Параметры</button></div>
     <div id="tControls">
       <div class="touchOnly">
         <h3>Сенсорное управление</h3>
         <div class="keys">
-          <div><kbd>Джойстик</kbd></div><div>Коснись в любом месте и тяни. До края круга — бег</div>
+          <div><kbd>Стик</kbd></div><div>Тяни стик — идти. До края круга — бег. Место и размер меняются во вкладке «Параметры»</div>
           <div><kbd>Сонар</kbd></div><div>Удерживай карточку для заряда, отпусти — круг</div>
           <div><kbd>Приманка</kbd></div><div>Тяни карточку в точку броска; нажатие — бросок вперёд</div>
-          <div><kbd>Присесть</kbd></div><div>Нажми, чтобы присесть или встать</div>
+          <div><kbd>Присесть</kbd></div><div>Круглая кнопка рядом со стиком: нажми, чтобы присесть или встать</div>
           <div><kbd>⟲</kbd><kbd>⟳</kbd></div><div>Повернуть камеру на 90°</div>
           <div><kbd>II</kbd></div><div>Пауза</div>
         </div>
@@ -282,6 +299,8 @@
       </div>
     </div>
     <div id="tOptions" class="hidden">
+      <div class="opt touchOnly"><span>Стик ходьбы и «Присесть»</span><button class="b" id="optJoyEdit" style="font-size:15px;padding:8px 14px">Переместить</button></div>
+      <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
       <div class="opt"><span>Громкость</span><input type="range" id="optVol" min="0" max="100"></div>
       <div class="opt"><span>Тени</span><button class="tog" id="optShadows"></button></div>
       <div class="opt"><span>Тряска камеры</span><button class="tog" id="optShake"></button></div>
@@ -311,6 +330,24 @@
     <div class="goals" id="rGoals"></div>
     <div class="row" id="rButtons"></div>
   </div>
+</div>
+
+<div id="layout" class="overlay hidden">
+  <div class="panel small">
+    <h2>Расположение стика</h2>
+    <div class="sub">Перетащи стик пальцем туда, где удобно. «Присесть» переедет вместе с ним. Стик справа — карточки уедут налево.</div>
+    <div class="row"><button class="b primary" id="layoutDone">Готово</button><button class="b" id="layoutReset">По умолчанию</button></div>
+  </div>
+</div>
+
+<div id="joyWrap">
+  <div id="joyHint" class="cond">Тяни стик — идти. До края — бег.</div>
+  <div id="joy"><div id="joyKnob"></div></div>
+  <button id="btnCrouch" title="Присесть">
+    <svg viewBox="0 0 56 56" fill="none" stroke="#77776f" stroke-width="4" stroke-linecap="round">
+      <circle cx="28" cy="16" r="7"/><path d="M28 23v12M18 47l10-10 10 10M16 30h24"/></svg>
+    <span>ПРИСЕСТЬ</span>
+  </button>
 </div>
 
 <script type="importmap">
@@ -358,7 +395,8 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const settings = Object.assign({ volume: 80, shadows: true, shake: true, hints: true }, store.get('echo_settings', {}));
+const JOY_DEFAULT = { joyX: 0.24, joyY: 0.84, joyScale: 100 };
+const settings = Object.assign({ volume: 80, shadows: true, shake: true, hints: true, ...JOY_DEFAULT }, store.get('echo_settings', {}));
 let progress = Object.assign({ unlocked: 1, levels: {} }, store.get('echo_progress', {}));
 
 // ================= рендер =================
@@ -1418,11 +1456,16 @@ function showResult(won, stars = 0) {
 }
 
 // ================= экраны и меню =================
-const SCREENS = ['mainMenu', 'levels', 'howto', 'settings', 'pause', 'result'];
+const SCREENS = ['mainMenu', 'levels', 'howto', 'settings', 'pause', 'result', 'layout'];
 let settingsBack = 'mainMenu';
 function show(id) {
   for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
   if (id === 'levels') renderLevels();
+  // стик виден в игре и в редакторе расположения
+  document.body.classList.toggle('editing', id === 'layout');
+  document.body.classList.toggle('showJoy', (id === null && state === 'playing') || id === 'layout');
+  if (id !== null) resetJoy();
+  applyJoyLayout();
 }
 function renderLevels() {
   const gEl = $('lvlGrid'); gEl.innerHTML = '';
@@ -1453,7 +1496,7 @@ function startLevel(i) {
   $('iNum').textContent = `Уровень ${String(i + 1).padStart(2, '0')}`;
   $('iName').textContent = L.name;
   $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro) : `Собери ${L.cellsN} энергоячеек.`;
-  touchCrouch = false; $('cCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
+  touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
   $('intro').style.opacity = 1; introT = settings.hints ? 6 : 3;
 }
 let introT = 0;
@@ -1490,7 +1533,12 @@ function syncSettingsUI() {
   $('optShadows').classList.toggle('on', settings.shadows);
   $('optShake').classList.toggle('on', settings.shake);
   $('optHints').classList.toggle('on', settings.hints);
+  $('optJoySize').value = settings.joyScale;
 }
+$('optJoySize').oninput = (e) => { settings.joyScale = +e.target.value; applyJoyLayout(); saveSettings(); };
+$('optJoyEdit').onclick = () => { sfx.click(); show('layout'); };
+$('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings'); };
+$('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
 $('optVol').oninput = (e) => { settings.volume = +e.target.value; if (A.master) A.master.gain.value = settings.volume / 100; saveSettings(); };
 $('optShadows').onclick = () => {
   settings.shadows = !settings.shadows; renderer.shadowMap.enabled = settings.shadows;
@@ -1514,6 +1562,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape') {
     if (state === 'playing') pauseGame();
     else if (state === 'paused' && !$('pause').classList.contains('hidden')) resume();
+    else if (!$('layout').classList.contains('hidden')) { saveSettings(); show('settings'); }
     else if (!$('settings').classList.contains('hidden')) show(settingsBack);
     return;
   }
@@ -1553,26 +1602,68 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
   if (!touchMode) setTouchMode(true);
-  if (state !== 'playing' || joy.id !== null) return;
-  Object.assign(joy, { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0, mag: 0 });
-  const el = $('joy'); el.style.display = 'block'; el.style.left = e.clientX + 'px'; el.style.top = e.clientY + 'px';
-  $('joyKnob').style.transform = '';
-  $('joyHint').style.opacity = 0;
-  capture(canvas, e);
 });
-canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== joy.id) return;
-  const R = 56, dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, d = Math.hypot(dx, dy);
+
+// ---- стик ходьбы: стоит на месте, игрок двигает его в настройках ----
+const joyEl = $('joy'), joyKnob = $('joyKnob'), btnCrouch = $('btnCrouch');
+let drag = null;
+const editing = () => document.body.classList.contains('editing');
+function applyJoyLayout() {
+  const s = settings.joyScale / 100, r = 62 * s, w = innerWidth, h = innerHeight;
+  // сверху место под HUD, а в редакторе — под его панель (плюс кнопка «Присесть» над стиком)
+  const top = editing() ? $('layout').querySelector('.panel').getBoundingClientRect().bottom + 40 * s + 12 : 160;
+  const x = clamp(settings.joyX * w, r + 16, w - r - 16), y = clamp(settings.joyY * h, Math.min(top + r, h * 0.62), h - r - 16);
+  const el = $('joyWrap');
+  el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.setProperty('--js', s);
+  document.body.classList.toggle('joyRight', x > w / 2);
+}
+function resetJoy() {
+  joy.id = null; joy.mag = 0; joy.x = joy.y = 0;
+  joyKnob.style.transform = ''; joyEl.classList.remove('run');
+}
+function moveJoy(e) {
+  const r = joyEl.getBoundingClientRect(), R = r.width * 0.42;
+  const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), d = Math.hypot(dx, dy);
   joy.mag = Math.min(1, d / R);
   joy.x = d ? dx / d * joy.mag : 0; joy.y = d ? dy / d * joy.mag : 0;
-  $('joyKnob').style.transform = `translate(${joy.x * R}px, ${joy.y * R}px)`;
-});
-function endJoy(e) {
-  if (e.pointerId !== joy.id) return;
-  joy.id = null; joy.mag = 0; $('joy').style.display = 'none';
+  joyKnob.style.transform = `translate(calc(-50% + ${joy.x * R}px), calc(-50% + ${joy.y * R}px))`;
 }
-canvas.addEventListener('pointerup', endJoy);
-canvas.addEventListener('pointercancel', endJoy);
+// в редакторе стик и «Присесть» перетаскиваются вместе
+function startDrag(e) {
+  const r = joyEl.getBoundingClientRect();
+  drag = { id: e.pointerId, ox: r.left + r.width / 2 - e.clientX, oy: r.top + r.height / 2 - e.clientY };
+  capture(e.currentTarget, e);
+}
+function moveDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return false;
+  settings.joyX = clamp((e.clientX + drag.ox) / innerWidth, 0, 1);
+  settings.joyY = clamp((e.clientY + drag.oy) / innerHeight, 0, 1);
+  applyJoyLayout();
+  return true;
+}
+function endDrag(e) { if (drag && e.pointerId === drag.id) { drag = null; saveSettings(); return true; } return false; }
+
+joyEl.addEventListener('pointerdown', (e) => {
+  if (editing()) { startDrag(e); return; }
+  if (state !== 'playing' || joy.id !== null) return;
+  joy.id = e.pointerId; capture(joyEl, e);
+  $('joyHint').style.opacity = 0;
+  moveJoy(e);
+});
+joyEl.addEventListener('pointermove', (e) => { if (!moveDrag(e) && e.pointerId === joy.id) moveJoy(e); });
+const joyUp = (e) => { if (!endDrag(e) && e.pointerId === joy.id) resetJoy(); };
+joyEl.addEventListener('pointerup', joyUp);
+joyEl.addEventListener('pointercancel', joyUp);
+btnCrouch.addEventListener('pointerdown', (e) => {
+  if (editing()) { startDrag(e); return; }
+  if (state !== 'playing') return;
+  touchCrouch = !touchCrouch; btnCrouch.classList.toggle('on', touchCrouch);
+});
+btnCrouch.addEventListener('pointermove', moveDrag);
+btnCrouch.addEventListener('pointerup', endDrag);
+btnCrouch.addEventListener('pointercancel', endDrag);
+addEventListener('resize', applyJoyLayout);
+applyJoyLayout();
 addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse' && e.button === 0 && state === 'playing') releaseSonar(); });
 addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
@@ -1581,7 +1672,7 @@ addEventListener('pointermove', (e) => {
 });
 
 // карточки как кнопки
-const cSonar = $('cSonar'), cDecoy = $('cDecoy'), cCrouch = $('cCrouch');
+const cSonar = $('cSonar'), cDecoy = $('cDecoy');
 cSonar.addEventListener('pointerdown', (e) => {
   if (!touchMode || state !== 'playing') return;
   capture(cSonar, e); cSonar.classList.add('held'); pressSonar();
@@ -1611,10 +1702,6 @@ function decoyUp(e, cancel) {
 }
 cDecoy.addEventListener('pointerup', (e) => decoyUp(e, false));
 cDecoy.addEventListener('pointercancel', (e) => decoyUp(e, true));
-cCrouch.addEventListener('pointerdown', () => {
-  if (state !== 'playing') return;
-  touchCrouch = !touchCrouch; cCrouch.classList.toggle('on', touchCrouch);
-});
 $('btnRotL').onclick = () => { cam.azT += Math.PI / 2; };
 $('btnRotR').onclick = () => { cam.azT -= Math.PI / 2; };
 const fsBtn = $('btnFull');
