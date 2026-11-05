@@ -2102,7 +2102,7 @@ function renderLevels() {
 // ---- режим администратора: открывает все уровни (звёзды за пройденные записываются как обычно) ----
 // Вход спрятан: 5 быстрых нажатий на заголовок «Уровни». В коде лежит только SHA-256 от кода,
 // сам код в исходниках не виден. Это защита от случайных игроков, а не от взлома: игра целиком в браузере.
-const ADMIN_HASH = '12ab2365b5d9695b1352e6233efe6cf88873bbf23ca32ef62ceabf65fa715018';
+const ADMIN_HASH = '5db1fee4b5703808c48078a76768b155b421b210c0761cd6a5d223f4d99f1eaa';
 let isAdmin = store.get('echo_admin', false) === true;
 let titleTaps = [];
 $('lvlTitle').addEventListener('click', () => {
