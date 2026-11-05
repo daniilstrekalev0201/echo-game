@@ -319,7 +319,7 @@
       <div class="opt touchOnly"><span>Стик ходьбы и «Присесть»</span><button class="b" id="optJoyEdit" style="font-size:15px;padding:8px 14px">Переместить</button></div>
       <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
       <div class="opt"><span>Громкость</span><input type="range" id="optVol" min="0" max="100"></div>
-      <div class="opt"><span>Графика</span>
+      <div class="opt"><span>Графика <small class="optNote" id="optQualityNote">(подбирается сама)</small></span>
         <div class="seg" id="optQuality"><button data-q="low">Низкая</button><button data-q="medium">Средняя</button><button data-q="high">Высокая</button></div></div>
       <div class="opt"><span>Эффект миниатюры <small class="optNote">(при высокой графике)</small></span><button class="tog" id="optTilt"></button></div>
       <div class="opt"><span>Тряска камеры</span><button class="tog" id="optShake"></button></div>
@@ -418,8 +418,9 @@ const store = {
 const JOY_DEFAULT = { joyX: 0.24, joyY: 0.84, joyScale: 100 };
 const savedSettings = store.get('echo_settings', {});
 // раньше была только галочка «Тени» — выключенные тени превращаются в низкое качество
-if (!savedSettings.quality && savedSettings.shadows === false) savedSettings.quality = 'low';
-const settings = Object.assign({ volume: 80, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', tilt: true,
+if (!savedSettings.quality && savedSettings.shadows === false) { savedSettings.quality = 'low'; savedSettings.qualityAuto = false; }
+// qualityAuto: пока игрок сам не выбрал графику, игра снижает её, если кадров мало
+const settings = Object.assign({ volume: 80, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
   shake: true, hints: true, ...JOY_DEFAULT }, savedSettings);
 delete settings.shadows;
 let progress = Object.assign({ unlocked: 1, levels: {} }, store.get('echo_progress', {}));
@@ -1869,6 +1870,7 @@ function startLevel(i) {
   $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro) : `Собери ${L.cellsN} энергоячеек.`;
   touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
   $('intro').style.opacity = 1; introT = settings.hints ? 6 : 3;
+  resetPerf();
 }
 let introT = 0;
 function pauseGame() {
@@ -1877,7 +1879,7 @@ function pauseGame() {
   sonarHeld = false; player.charging = false;
   for (const k in keys) keys[k] = false;
 }
-function resume() { if (state !== 'paused') return; state = 'playing'; show(null); }
+function resume() { if (state !== 'paused') return; state = 'playing'; show(null); resetPerf(); }
 function toMenu() {
   state = 'menu'; $('hud').classList.add('hidden'); $('vignette').style.opacity = 0;
   buildLevel(LEVELS[0]); resetPlayer(); clearPings();
@@ -1903,6 +1905,7 @@ function syncSettingsUI() {
   $('optVol').value = settings.volume;
   document.querySelectorAll('#optQuality button').forEach(b => b.classList.toggle('on', b.dataset.q === settings.quality));
   $('optTilt').classList.toggle('on', settings.tilt);
+  $('optQualityNote').hidden = !settings.qualityAuto;
   $('optShake').classList.toggle('on', settings.shake);
   $('optHints').classList.toggle('on', settings.hints);
   $('optJoySize').value = settings.joyScale;
@@ -1913,7 +1916,7 @@ $('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings');
 $('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
 $('optVol').oninput = (e) => { settings.volume = +e.target.value; if (A.master) A.master.gain.value = settings.volume / 100; saveSettings(); };
 document.querySelectorAll('#optQuality button').forEach(b => b.onclick = () => {
-  sfx.click(); settings.quality = b.dataset.q; applyQuality(); syncSettingsUI(); saveSettings();
+  sfx.click(); settings.quality = b.dataset.q; settings.qualityAuto = false; applyQuality(); syncSettingsUI(); saveSettings();
 });
 $('optTilt').onclick = () => { settings.tilt = !settings.tilt; syncSettingsUI(); saveSettings(); };
 $('optShake').onclick = () => { settings.shake = !settings.shake; syncSettingsUI(); saveSettings(); };
@@ -2097,7 +2100,26 @@ function frame() {
   requestAnimationFrame(frame);
   lastFrame = performance.now();
   if (audioSleeping && !document.hidden) { audioSleeping = false; A.ctx.resume(); }
-  tick(Math.min(clock.getDelta(), 0.05));
+  const raw = clock.getDelta();
+  watchPerf(raw);
+  tick(Math.min(raw, 0.05));
+}
+// Автоподбор графики: в игре 4 секунды считаем кадры (первые 2 секунды после старта
+// или паузы пропускаем). Меньше 40 кадров в секунду — снижаем качество на ступень.
+const perf = { t: 0, frames: 0, warm: 2 };
+function resetPerf() { perf.t = perf.frames = 0; perf.warm = 2; }
+function watchPerf(dt) {
+  if (!settings.qualityAuto || settings.quality === 'low' || state !== 'playing' || document.hidden) { perf.t = perf.frames = 0; return; }
+  if (dt > 0.25) return;   // вкладку сворачивали — такой кадр не показателен
+  if (perf.warm > 0) { perf.warm -= dt; return; }
+  perf.t += dt; perf.frames++;
+  if (perf.t < 4) return;
+  const fps = perf.frames / perf.t;
+  resetPerf();
+  if (fps >= 40) return;
+  settings.quality = settings.quality === 'high' ? 'medium' : 'low';
+  applyQuality(); saveSettings();
+  showMsg(`ГРАФИКА СНИЖЕНА ДО ${settings.quality === 'medium' ? 'СРЕДНЕЙ' : 'НИЗКОЙ'} — ТАК ПЛАВНЕЕ`, 3);
 }
 function tick(dt) {
   time += dt;
@@ -2156,7 +2178,7 @@ buildLevel(LEVELS[0]);
 resetPlayer();
 applyQuality();
 frame();
-window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
 </body>
 </html>
