@@ -95,6 +95,10 @@
   .panel.small { max-width: 420px; text-align: center; }
   .title { font: 700 96px/0.9 "Barlow Condensed", sans-serif; letter-spacing: 0.12em; }
   .title span { color: var(--orange); }
+  #mainMenu .panel { position: relative; }
+  .langBtn { position: absolute; top: 16px; right: 16px; font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: 0.08em;
+    padding: 6px 12px; border: 2px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; }
+  .langBtn:hover { border-color: var(--orange); color: var(--orange); }
   .sub { color: var(--dim); font-size: 17px; margin: 8px 0 26px; }
   h2 { font: 700 36px/1 "Barlow Condensed", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 18px; }
   h3 { font: 600 17px "Barlow Condensed", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 18px 0 10px; }
@@ -297,6 +301,7 @@
 <!-- главное меню -->
 <div id="mainMenu" class="overlay">
   <div class="panel">
+    <button class="langBtn" id="btnLang" type="button"></button>
     <div class="title">ЭХ<span>О</span></div>
     <div class="sub">Охотник невидим и слеп. Но слышит каждый твой шаг.</div>
     <div class="menuCol">
@@ -384,6 +389,7 @@
       <button class="b" id="bindReset" style="font-size:15px;padding:8px 14px;margin-top:14px">Вернуть клавиши по умолчанию</button>
     </div>
     <div id="tOptions" class="hidden">
+      <div class="opt"><span>Язык · Language</span><div class="seg" id="optLang"><button data-l="ru">Русский</button><button data-l="en">English</button></div></div>
       <div class="opt touchOnly"><span>Стик ходьбы и «Присесть»</span><button class="b" id="optJoyEdit" style="font-size:15px;padding:8px 14px">Переместить</button></div>
       <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
       <div class="opt touchOnly"><span>Бег со стика <small class="optNote" id="optRunAtVal"></small></span><input type="range" id="optRunAt" min="60" max="100" step="5"></div>
@@ -517,9 +523,83 @@ const savedSettings = store.get('echo_settings', {});
 // раньше была только галочка «Тени» — выключенные тени превращаются в низкое качество
 if (!savedSettings.quality && savedSettings.shadows === false) { savedSettings.quality = 'low'; savedSettings.qualityAuto = false; }
 // qualityAuto: пока игрок сам не выбрал графику, игра снижает её, если кадров мало
-const settings = Object.assign({ volume: 80, music: 60, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
+const settings = Object.assign({ lang: (navigator.language || '').toLowerCase().startsWith('ru') ? 'ru' : 'en', volume: 80, music: 60, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
   shake: true, hints: true, ...JOY_DEFAULT }, savedSettings);
 delete settings.shadows;
+
+// ================= языки: русский (основной текст) и английский =================
+// Тексты в коде пишутся по-русски и проходят через t(); английский берётся из словаря по русскому тексту.
+// {0}, {1}… — подстановки. Тексты из разметки переводятся отдельно (см. applyLang).
+const EN = {
+  // сообщения в игре
+  'СВЕТ МИГАЕТ…': 'THE LIGHTS FLICKER…', 'БЛЭКАУТ — СТЕНЫ ВИДНО ТОЛЬКО В СВЕТЕ СОНАРА': 'BLACKOUT — WALLS SHOW ONLY IN SONAR LIGHT',
+  'СВЕТ ВЕРНУЛСЯ': 'THE LIGHTS ARE BACK', 'ТЫ В ШКАФУ — ЗАМРИ, СЕРДЦЕ УСПОКОИТСЯ': 'IN THE LOCKER — STAY STILL, YOUR HEART WILL CALM DOWN',
+  'ТУРЕЛЬ ПОДНЯЛА ТРЕВОГУ': 'A TURRET RAISED THE ALARM', 'ОН ИДЁТ НА ПРИМАНКУ': 'IT GOES FOR THE DECOY',
+  'ОН УСЛЫШАЛ ТВОЁ СЕРДЦЕ': 'IT HEARD YOUR HEART', 'ОХОТНИК БЕЖИТ НА ТРЕВОГУ': 'A HUNTER RUNS TO THE ALARM', 'ОН УСЛЫШАЛ': 'IT HEARD YOU',
+  'ОХОТНИК ОЧНУЛСЯ': 'THE HUNTER IS BACK ONLINE', 'ТЕБЯ ЗАМЕТИЛИ — БЕГИ': 'YOU WERE SPOTTED — RUN',
+  'НЕТ ПРИМАНОК': 'NO DECOYS', 'НЕТ ВОДЫ': 'NO WATER', 'ОХОТНИК ЗАМКНУЛ НА {0} С': 'HUNTER SHORT-CIRCUITED FOR {0} S',
+  'ПРОСНУЛСЯ ЕЩЁ ОДИН ОХОТНИК · ИХ {0}': 'ANOTHER HUNTER WOKE UP · {0} NOW', 'ЯЧЕЙКА {0} / {1}': 'CELL {0} / {1}',
+  'ВОДОМЁТЫ: {0}': 'WATER GUNS: {0}', 'ВОДОМЁТ: ОДИН ЗАРЯД': 'WATER GUN: ONE SHOT', 'Двинься, чтобы вылезти': 'Move to get out',
+  '«Присесть» — спрятаться в шкаф': '"Crouch" — hide in the locker', '{0} — спрятаться в шкаф': '{0} — hide in the locker',
+  'ВЫХОД ОТКРЫТ — ОХОТНИКИ В ЯРОСТИ': 'EXIT OPEN — THE HUNTERS ARE FURIOUS', 'ВЫХОД': 'EXIT', 'ЯЧЕЙКА': 'CELL',
+  'ГРАФИКА СНИЖЕНА ДО {0} — ТАК ПЛАВНЕЕ': 'GRAPHICS LOWERED TO {0} FOR SMOOTHNESS', 'СРЕДНЕЙ': 'MEDIUM', 'НИЗКОЙ': 'LOW',
+  'Уровень {0}': 'Level {0}', 'Собери {0} энергоячеек.': 'Collect {0} energy cells.',
+  // итоги уровня
+  'Все уровни пройдены': 'All levels complete', 'Уровень пройден': 'Level complete', 'Тебя поймали': 'You were caught',
+  'Время {0} (норма {1})': 'Time {0} (target {1})', 'Ни разу не заметили': 'Never spotted',
+  'Ячейки: <b>{0} / {1}</b><br>Время: <b>{2}</b>': 'Cells: <b>{0} / {1}</b><br>Time: <b>{2}</b>',
+  'Совет: присядь ({0}), когда Охотник рядом — так тише и сердце успокаивается.': 'Tip: crouch ({0}) when a Hunter is near — it is quieter and calms your heart.',
+  'кнопка «Присесть»': 'the "Crouch" button', 'Отладка включена — прогресс не записан.': 'Debug was on — progress not saved.',
+  'Далее': 'Next', 'Заново': 'Retry', 'Уровни': 'Levels',
+  // выбор уровня и скины
+  'ЗАКРЫТО': 'LOCKED', 'лучшее {0}': 'best {0}', '{0} ячеек · {1} охот.': '{0} cells · {1} hunters',
+  'шкафы': 'lockers', 'вода': 'water', 'турели': 'turrets', 'двери': 'doors', '+охотники': '+hunters', 'блэкаут': 'blackout',
+  '★ {0} из {1}': '★ {0} of {1}', 'выбран': 'selected', 'открыт': 'unlocked', 'нужно ★ {0}': 'needs ★ {0}',
+  'Здесь вход недоступен — открой игру по ссылке.': 'Login is unavailable here — open the game via its link.', 'Неверный код.': 'Wrong code.',
+  // настройки
+  '(только у самого края)': '(only at the very edge)', '(с {0}% отклонения)': '(from {0}% tilt)',
+  'Нажми, чтобы назначить другую клавишу': 'Click to assign another key', 'Нажми…': 'Press…',
+  '{0} убрана с «{1}».': '{0} removed from "{1}".', '», «': '", "',
+  ' Осторожно: Ctrl вместе с W закрывает вкладку браузера.': ' Careful: Ctrl together with W closes the browser tab.',
+  'Клавиши вернулись к стандартным.': 'Keys reset to defaults.', 'Точно? Ещё раз': 'Sure? Press again', 'Сброшено': 'Reset done', 'Сбросить': 'Reset',
+  ' или ': ' or ', 'не назначено': 'not set',
+  // действия
+  'Вперёд': 'Forward', 'Назад': 'Back', 'Влево': 'Left', 'Вправо': 'Right', 'Бег': 'Run', 'Присесть': 'Crouch', 'Сонар': 'Sonar',
+  'Приманка': 'Decoy', 'Водомёт': 'Water gun', 'Камера влево': 'Camera left', 'Камера вправо': 'Camera right',
+  // скины
+  'Стандарт': 'Standard', 'Морской': 'Sea', 'Мятный': 'Mint', 'Лава': 'Lava', 'Неон': 'Neon', 'Золото': 'Gold', 'Призрак': 'Ghost', 'Легенда': 'Legend',
+  // названия кнопок мыши и клавиш
+  'ЛКМ': 'LMB', 'СКМ': 'MMB', 'ПКМ': 'RMB', 'Мышь 4': 'Mouse 4', 'Мышь 5': 'Mouse 5', 'Пробел': 'Space',
+  'Л.Shift': 'L.Shift', 'П.Shift': 'R.Shift', 'Л.Ctrl': 'L.Ctrl', 'П.Ctrl': 'R.Ctrl', 'Л.Alt': 'L.Alt', 'П.Alt': 'R.Alt',
+};
+// уровни: название, вступление и вступление для телефона
+const LEVELS_EN = [
+  ['Warehouse', 'The Hunter is invisible — watch for the dark rings of its steps. Collect 3 energy cells and reach the exit.'],
+  ['Workshop', 'Decoys ({decoy}) fly over walls. And there are lockers by the walls: crouch ({crouch}) next to one to hide inside.',
+    'Drag the "Decoy" card — it flies over walls. And there are lockers by the walls: press "Crouch" next to one to hide inside.'],
+  ['Arsenal', 'Two Hunters. Water guns lie around: one shot of water ({water}) short-circuits a Hunter for 4.5 seconds — it is a robot, after all.',
+    'Two Hunters. Water guns lie around: drag the "Water gun" card towards a Hunter — the water short-circuits it for 4.5 seconds.'],
+  ['Testing Ground', 'Turrets on the walls are blind, but when they hear a sound they raise the alarm — and every Hunter rushes to the source.'],
+  ['Core', 'New: doors. They open by themselves and close behind you, while a Hunter has to break them down — loudly.'],
+  ['Reservoir', 'New: every cell you pick up wakes another Hunter. The more you collect, the more crowded the maze gets.'],
+  ['Foundry', 'A big workshop with reinforcements. Plan your route so the last cells are close to the exit.'],
+  ['Depths', 'New: blackout. Now and then the lights go out — then the walls show only while your sonar lights them up.'],
+  ['Junction', 'Three Hunters at once and one more per cell. Decoys and water are your best friends.'],
+  ['Heart', 'The final level. The biggest maze, eight cells and a whole pack. Good luck, ECHO-01.'],
+];
+const isEn = () => settings.lang === 'en';
+function t(s, ...args) {
+  let r = isEn() && EN[s] !== undefined ? EN[s] : s;
+  args.forEach((v, i) => { r = r.split('{' + i + '}').join(v); });
+  return r;
+}
+// дробные числа: «4,5» по-русски и «4.5» по-английски
+const num = (v) => isEn() ? String(v) : String(v).replace('.', ',');
+function levelText(i, field) {
+  const lv = LEVELS[i], en = LEVELS_EN[i];
+  if (!isEn() || !en) return field === 'name' ? lv.name : field === 'introTouch' ? lv.introTouch : lv.intro;
+  return field === 'name' ? en[0] : field === 'introTouch' ? (lv.introTouch ? en[2] : undefined) : en[1];
+}
 
 // ---- управление: каждое действие — до двух клавиш или кнопок мыши (Mouse0 — ЛКМ, Mouse2 — ПКМ) ----
 const ACTIONS = [
@@ -544,13 +624,13 @@ const KEY_NAMES = {
 };
 function keyLabel(code) {
   if (!code) return '—';
-  if (KEY_NAMES[code]) return KEY_NAMES[code];
+  if (KEY_NAMES[code]) return t(KEY_NAMES[code]);
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);
   if (code.startsWith('Numpad')) return 'Num ' + code.slice(6);
   return code;
 }
-const bindLabel = (a) => settings.binds[a].filter(Boolean).map(keyLabel).join(' или ') || 'не назначено';
+const bindLabel = (a) => settings.binds[a].filter(Boolean).map(keyLabel).join(t(' или ')) || t('не назначено');
 const actionsOf = (code) => ACTIONS.map(([a]) => a).filter(a => settings.binds[a].includes(code));
 let progress = Object.assign({ unlocked: 1, levels: {} }, store.get('echo_progress', {}));
 
@@ -643,17 +723,17 @@ function resetBlackout(enabled) {
   for (const s of sonarLights) { s.t = 0; s.l.intensity = 0; }
   playerLight.intensity = 0;
 }
-function startBlackout() { blackout.phase = 'flicker'; blackout.t = 1.6; showMsg('СВЕТ МИГАЕТ…', 1.6); sfx.power(false); }
+function startBlackout() { blackout.phase = 'flicker'; blackout.t = 1.6; showMsg(t('СВЕТ МИГАЕТ…'), 1.6); sfx.power(false); }
 function updateBlackout(dt) {
   if (blackout.phase === 'off' && blackout.k <= 0.001 && !isFinite(blackout.t)) return;
   blackout.t -= dt;
   if (blackout.phase === 'off' && blackout.t <= 0) startBlackout();
   else if (blackout.phase === 'flicker' && blackout.t <= 0) {
     blackout.phase = 'dark'; blackout.t = rand(16, 22);
-    showMsg('БЛЭКАУТ — СТЕНЫ ВИДНО ТОЛЬКО В СВЕТЕ СОНАРА', 3);
+    showMsg(t('БЛЭКАУТ — СТЕНЫ ВИДНО ТОЛЬКО В СВЕТЕ СОНАРА'), 3);
   } else if (blackout.phase === 'dark' && blackout.t <= 0) {
     blackout.phase = 'off'; blackout.t = L.blackout ? rand(45, 65) : Infinity;
-    showMsg('СВЕТ ВЕРНУЛСЯ', 1.6); sfx.power(true);
+    showMsg(t('СВЕТ ВЕРНУЛСЯ'), 1.6); sfx.power(true);
   }
   const target = blackout.phase === 'dark' ? 1 : blackout.phase === 'flicker' ? (Math.sin(time * 37) > 0.2 ? 0.85 : 0.1) : 0;
   blackout.k += (target - blackout.k) * Math.min(1, dt * (blackout.phase === 'flicker' ? 30 : 2.5));
@@ -1482,7 +1562,7 @@ function enterLocker(l) {
   // залезаешь тихо; выдаст только Охотник, который в этот момент видит тебя вплотную
   sfx.creak(l.x, l.z, 0.4);
   for (const h of hunters) if (h.sees && Math.hypot(h.x - l.fx, h.z - l.fz) < 2) h.checkLocker = l;
-  showMsg('ТЫ В ШКАФУ — ЗАМРИ, СЕРДЦЕ УСПОКОИТСЯ', 2.5);
+  showMsg(t('ТЫ В ШКАФУ — ЗАМРИ, СЕРДЦЕ УСПОКОИТСЯ'), 2.5);
 }
 function exitLocker() {
   const l = player.hidden; if (!l) return;
@@ -1826,7 +1906,7 @@ function updateTurrets(dt) {
         emitRing(t.x, t.z, CFG.ring.alarm, 'alarm', t.pending.origin);
         FX.burst(t.x, t.g.position.y + 0.8, t.z, 14, 0xff4a2a);
         sfx.siren(t.x, t.z);
-        flashAlert('ТУРЕЛЬ ПОДНЯЛА ТРЕВОГУ');
+        flashAlert(t('ТУРЕЛЬ ПОДНЯЛА ТРЕВОГУ'));
         t.pending = null; t.cd = 5;
       }
     }
@@ -1850,10 +1930,10 @@ function hunterHear(h, x, z, source) {
   hunterGoTo(h, x, z);
   // звук прямо у шкафа, где прячется игрок, — Охотник заглянет внутрь
   h.checkLocker = player.hidden && Math.hypot(x - player.hidden.fx, z - player.hidden.fz) < 1.8 ? player.hidden : null;
-  if (source === 'decoy') flashAlert('ОН ИДЁТ НА ПРИМАНКУ');
-  else if (source === 'heart') flashAlert('ОН УСЛЫШАЛ ТВОЁ СЕРДЦЕ');
-  else if (source === 'alarm') flashAlert('ОХОТНИК БЕЖИТ НА ТРЕВОГУ');
-  else if (source !== 'silent') flashAlert('ОН УСЛЫШАЛ');
+  if (source === 'decoy') flashAlert(t('ОН ИДЁТ НА ПРИМАНКУ'));
+  else if (source === 'heart') flashAlert(t('ОН УСЛЫШАЛ ТВОЁ СЕРДЦЕ'));
+  else if (source === 'alarm') flashAlert(t('ОХОТНИК БЕЖИТ НА ТРЕВОГУ'));
+  else if (source !== 'silent') flashAlert(t('ОН УСЛЫШАЛ'));
 }
 function pickWander(h) {
   const [px, py] = tileOf(player.x, player.z);
@@ -1884,7 +1964,7 @@ function updateHunter(h, dt) {
     h.stunT -= dt; h.sees = false; h.speedNow = 0;
     if (Math.random() < dt * 12) FX.burst(h.x + rand(-0.3, 0.3), 1.3 + rand(0, 0.7), h.z + rand(-0.3, 0.3), 2, 0x9fd8ff);
     animateHunter(h, dt, 0);
-    if (h.stunT <= 0) { h.state = 'search'; h.timer = 2; flashAlert('ОХОТНИК ОЧНУЛСЯ'); }
+    if (h.stunT <= 0) { h.state = 'search'; h.timer = 2; flashAlert(t('ОХОТНИК ОЧНУЛСЯ')); }
     return;
   }
   const dx = player.x - h.x, dz = player.z - h.z, dist = Math.hypot(dx, dz);
@@ -1900,7 +1980,7 @@ function updateHunter(h, dt) {
   h.doorT = 0;
   h.sees = !player.hidden && dist < (h.state === 'chase' ? CFG.hunter.keep : CFG.hunter.sense) && los(h.x, h.z, player.x, player.z);
   if (h.state !== 'idle' && h.sees && h.state !== 'chase') {
-    h.state = 'chase'; wasChased = true; sfx.growl(h.x, h.z, 0.4); flashAlert('ТЕБЯ ЗАМЕТИЛИ — БЕГИ');
+    h.state = 'chase'; wasChased = true; sfx.growl(h.x, h.z, 0.4); flashAlert(t('ТЕБЯ ЗАМЕТИЛИ — БЕГИ'));
   }
   let speed = 0;
   switch (h.state) {
@@ -2040,7 +2120,7 @@ function aimPoint() {
 }
 function throwDecoy(target) {
   if (player.hidden) return;
-  if (player.decoys <= 0) { showMsg('НЕТ ПРИМАНОК', 1); return; }
+  if (player.decoys <= 0) { showMsg(t('НЕТ ПРИМАНОК'), 1); return; }
   const a = target || aimPoint(); if (!a) return;
   player.decoys--;
   const g = buildDecoy(0.9), y0 = 0.9, t = 0.45 + a.d / 16;
@@ -2056,7 +2136,7 @@ const jetGeo = new THREE.CapsuleGeometry(0.06, 0.45, 4, 8).rotateX(Math.PI / 2);
 const jetMat = new THREE.MeshBasicMaterial({ color: 0x7cc8ff, transparent: true, opacity: 0.85 });
 function fireWater(target) {
   if (player.hidden) return;
-  if (player.water <= 0) { showMsg('НЕТ ВОДЫ', 1); return; }
+  if (player.water <= 0) { showMsg(t('НЕТ ВОДЫ'), 1); return; }
   const a = target || aimPoint();
   let dx = a ? a.x - player.x : Math.sin(player.rot), dz = a ? a.z - player.z : Math.cos(player.rot);
   const len = Math.hypot(dx, dz);
@@ -2077,7 +2157,7 @@ function stunHunter(h) {
   h.stunT = CFG.stun; h.state = 'search'; h.path = [];
   sfx.zap(h.x, h.z);
   FX.burst(h.x, 1.6, h.z, 20, 0x9fd8ff);
-  flashAlert(`ОХОТНИК ЗАМКНУЛ НА ${String(CFG.stun).replace('.', ',')} С`);
+  flashAlert(t('ОХОТНИК ЗАМКНУЛ НА {0} С', num(CFG.stun)));
 }
 function updateJets(dt) {
   for (let i = jets.length - 1; i >= 0; i--) {
@@ -2104,7 +2184,7 @@ function reinforce() {
   const h = spawnHunter(c, 1.5);
   FX.burst(h.x, 1.4, h.z, 16, 0xff4a2a);
   sfx.growl(h.x, h.z, 0.45);
-  flashAlert(`ПРОСНУЛСЯ ЕЩЁ ОДИН ОХОТНИК · ИХ ${hunters.length}`);
+  flashAlert(t('ПРОСНУЛСЯ ЕЩЁ ОДИН ОХОТНИК · ИХ {0}', hunters.length));
 }
 function updateThrown(dt) {
   for (let i = thrown.length - 1; i >= 0; i--) {
@@ -2193,7 +2273,7 @@ function updatePlayer(dt) {
       FX.burst(c.x, 0.9, c.z, 18, 0xf2a51e);
       emitRing(player.x, player.z, CFG.ring.chime, 'chime');
       if (player.got >= L.cellsN) openExit();
-      else showMsg(`ЯЧЕЙКА ${player.got} / ${L.cellsN}`, 1.6);
+      else showMsg(t('ЯЧЕЙКА {0} / {1}', player.got, L.cellsN), 1.6);
       if (L.reinforce && hunters.length < L.reinforce) reinforce();
     }
   }
@@ -2212,7 +2292,7 @@ function updatePlayer(dt) {
     if (player.water < CFG.waterMax && Math.hypot(p.x - player.x, p.z - player.z) < 0.9) {
       level.remove(p.g); guns.splice(i, 1); removePing(p);
       player.water++; sfx.pick();
-      showMsg(player.water > 1 ? `ВОДОМЁТЫ: ${player.water}` : 'ВОДОМЁТ: ОДИН ЗАРЯД', 1.6);
+      showMsg(player.water > 1 ? t('ВОДОМЁТЫ: {0}', player.water) : t('ВОДОМЁТ: ОДИН ЗАРЯД'), 1.6);
     }
   }
   playerModel.gun.visible = player.water > 0;
@@ -2251,7 +2331,7 @@ function animatePlayer(dt, running) {
   p.g.visible = playerBlob.visible = !player.hidden;
   // подсказка у шкафа
   const lk = !player.hidden && state === 'playing' && nearestLocker();
-  $('prompt').textContent = player.hidden ? 'Двинься, чтобы вылезти' : lk ? (touchMode ? '«Присесть» — спрятаться в шкаф' : `${bindLabel('crouch')} — спрятаться в шкаф`) : '';
+  $('prompt').textContent = player.hidden ? t('Двинься, чтобы вылезти') : lk ? (touchMode ? t('«Присесть» — спрятаться в шкаф') : t('{0} — спрятаться в шкаф', bindLabel('crouch'))) : '';
   $('prompt').style.opacity = $('prompt').textContent ? 1 : 0;
   p.g.position.set(player.x, 0, player.z);
   p.g.rotation.y = player.rot;
@@ -2289,7 +2369,7 @@ function openExit() {
   exitObj = { g, ring, x: c.x, z: c.z };
   addPing(exitObj, 'exit', Infinity);
   for (const h of hunters) { sfx.growl(h.x, h.z, 0.5); hunterHear(h, player.x, player.z, 'silent'); }
-  showMsg('ВЫХОД ОТКРЫТ — ОХОТНИКИ В ЯРОСТИ', 3);
+  showMsg(t('ВЫХОД ОТКРЫТ — ОХОТНИКИ В ЯРОСТИ'), 3);
 }
 
 // ================= метки на экране =================
@@ -2317,7 +2397,7 @@ function updatePings(dt) {
     _v.set(p.target.x, 1.2, p.target.z).project(camera);
     let sx = (_v.x * 0.5 + 0.5) * w, sy = (-_v.y * 0.5 + 0.5) * h;
     const on = sx > m && sx < w - m && sy > m && sy < h - m;
-    const label = p.kind === 'exit' ? 'ВЫХОД' : p.kind === 'cell' ? 'ЯЧЕЙКА' : '';
+    const label = p.kind === 'exit' ? t('ВЫХОД') : p.kind === 'cell' ? t('ЯЧЕЙКА') : '';
     const mode = on ? 'on' : 'off';
     if (mode !== p.mode) {
       p.mode = mode;
@@ -2427,25 +2507,25 @@ function win() {
     store.set('echo_progress', progress);
   }
   showResult(true, stars);
-  if (dbg.used) $('rGoals').innerHTML += '<br><span style="color:var(--dim)">Отладка включена — прогресс не записан.</span>';
+  if (dbg.used) $('rGoals').innerHTML += '<br><span style="color:var(--dim)">' + t('Отладка включена — прогресс не записан.') + '</span>';
 }
 function showResult(won, stars = 0) {
   if (state === 'dead') state = 'over';
   $('hud').classList.add('hidden');
   $('vignette').style.opacity = 0;
   const last = levelIdx === LEVELS.length - 1;
-  $('rTitle').textContent = won ? (last ? 'Все уровни пройдены' : 'Уровень пройден') : 'Тебя поймали';
+  $('rTitle').textContent = won ? t(last ? 'Все уровни пройдены' : 'Уровень пройден') : t('Тебя поймали');
   $('rTitle').style.color = won ? 'var(--ink)' : 'var(--red)';
   $('rStars').innerHTML = won ? '★'.repeat(stars) + `<span class="e">${'★'.repeat(3 - stars)}</span>` : '';
   const ok = (b) => b ? '<span class="ok">✓</span>' : '<span>✗</span>';
   $('rGoals').innerHTML = won
-    ? `${ok(true)} Уровень пройден<br>${ok(playTime <= L.par)} Время ${fmt(playTime)} (норма ${fmt(L.par)})<br>${ok(!wasChased)} Ни разу не заметили`
-    : `Ячейки: <b>${player.got} / ${L.cellsN}</b><br>Время: <b>${fmt(playTime)}</b><br><span style="color:var(--dim)">Совет: присядь (${touchMode ? 'кнопка «Присесть»' : bindLabel('crouch')}), когда Охотник рядом — так тише и сердце успокаивается.</span>`;
+    ? `${ok(true)} ${t('Уровень пройден')}<br>${ok(playTime <= L.par)} ${t('Время {0} (норма {1})', fmt(playTime), fmt(L.par))}<br>${ok(!wasChased)} ${t('Ни разу не заметили')}`
+    : `${t('Ячейки: <b>{0} / {1}</b><br>Время: <b>{2}</b>', player.got, L.cellsN, fmt(playTime))}<br><span style="color:var(--dim)">${t('Совет: присядь ({0}), когда Охотник рядом — так тише и сердце успокаивается.', touchMode ? t('кнопка «Присесть»') : bindLabel('crouch'))}</span>`;
   const btns = $('rButtons'); btns.innerHTML = '';
   const mk = (text, cls, fn) => { const b = document.createElement('button'); b.className = 'b ' + cls; b.textContent = text; b.onclick = () => { sfx.click(); fn(); }; btns.appendChild(b); };
-  if (won && !last) mk('Далее', 'primary', () => startLevel(levelIdx + 1));
-  mk('Заново', won && !last ? '' : 'primary', () => startLevel(levelIdx));
-  mk('Уровни', '', () => { toMenu(); show('levels'); });
+  if (won && !last) mk(t('Далее'), 'primary', () => startLevel(levelIdx + 1));
+  mk(t('Заново'), won && !last ? '' : 'primary', () => startLevel(levelIdx));
+  mk(t('Уровни'), '', () => { toMenu(); show('levels'); });
   show('result');
 }
 
@@ -2470,10 +2550,10 @@ function renderLevels() {
     const b = document.createElement('button');
     b.className = 'lvl' + (locked ? ' locked' : '');
     const st = rec ? rec.stars : 0;
-    b.innerHTML = `${locked ? '<div class="lock">ЗАКРЫТО</div>' : ''}<div class="n">${String(i + 1).padStart(2, '0')}</div>
-      <div class="nm">${lv.name}</div><div class="st">${'★'.repeat(st)}<span class="e">${'★'.repeat(3 - st)}</span></div>
-      <div class="bt">${rec ? 'лучшее ' + fmt(rec.time) : `${lv.cellsN} ячеек · ${lv.hunters} охот.`}</div>
-      <div class="tags">${lv.lockers ? '<span class="tg">шкафы</span>' : ''}${lv.pistols ? '<span class="tg w">вода</span>' : ''}${lv.turrets ? '<span class="tg">турели</span>' : ''}${lv.doors ? '<span class="tg">двери</span>' : ''}${lv.reinforce ? '<span class="tg r">+охотники</span>' : ''}${lv.blackout ? '<span class="tg d">блэкаут</span>' : ''}</div>`;
+    b.innerHTML = `${locked ? `<div class="lock">${t('ЗАКРЫТО')}</div>` : ''}<div class="n">${String(i + 1).padStart(2, '0')}</div>
+      <div class="nm">${levelText(i, 'name')}</div><div class="st">${'★'.repeat(st)}<span class="e">${'★'.repeat(3 - st)}</span></div>
+      <div class="bt">${rec ? t('лучшее {0}', fmt(rec.time)) : t('{0} ячеек · {1} охот.', lv.cellsN, lv.hunters)}</div>
+      <div class="tags">${lv.lockers ? `<span class="tg">${t('шкафы')}</span>` : ''}${lv.pistols ? `<span class="tg w">${t('вода')}</span>` : ''}${lv.turrets ? `<span class="tg">${t('турели')}</span>` : ''}${lv.doors ? `<span class="tg">${t('двери')}</span>` : ''}${lv.reinforce ? `<span class="tg r">${t('+охотники')}</span>` : ''}${lv.blackout ? `<span class="tg d">${t('блэкаут')}</span>` : ''}</div>`;
     if (!locked) b.onclick = () => { sfx.click(); startLevel(i); };
     gEl.appendChild(b);
   });
@@ -2489,15 +2569,15 @@ function renderLevels() {
 const totalStars = () => Object.values(progress.levels).reduce((s, r) => s + (r.stars || 0), 0);
 function renderSkins() {
   const have = totalStars();
-  $('skinStars').textContent = `★ ${have} из ${LEVELS.length * 3}`;
+  $('skinStars').textContent = t('★ {0} из {1}', have, LEVELS.length * 3);
   const gEl = $('skinGrid'); gEl.innerHTML = '';
   for (const s of SKINS) {
     const open = isAdmin || have >= s.stars;
     const b = document.createElement('button');
     b.className = 'skin' + (s === skin ? ' on' : '') + (open ? '' : ' locked');
     const hex = (c) => '#' + c.toString(16).padStart(6, '0');
-    b.innerHTML = `<div class="sw" style="background:${hex(s.helm)}"><i style="background:${hex(s.band)}"></i></div>${s.name}` +
-      `<span class="req">${open ? (s === skin ? 'выбран' : 'открыт') : `нужно ★ ${s.stars}`}</span>`;
+    b.innerHTML = `<div class="sw" style="background:${hex(s.helm)}"><i style="background:${hex(s.band)}"></i></div>${t(s.name)}` +
+      `<span class="req">${open ? t(s === skin ? 'выбран' : 'открыт') : t('нужно ★ {0}', s.stars)}</span>`;
     if (open) b.onclick = () => { sfx.click(); applySkin(s); settings.skin = s.id; saveSettings(); renderSkins(); };
     gEl.appendChild(b);
   }
@@ -2522,8 +2602,8 @@ async function sha256(text) {
 $('adminBox').addEventListener('submit', async (e) => {
   e.preventDefault();
   const code = $('adminCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!crypto.subtle) { $('adminMsg').textContent = 'Здесь вход недоступен — открой игру по ссылке.'; return; }
-  if (await sha256(code) !== ADMIN_HASH) { $('adminMsg').textContent = 'Неверный код.'; $('adminCode').select(); return; }
+  if (!crypto.subtle) { $('adminMsg').textContent = t('Здесь вход недоступен — открой игру по ссылке.'); return; }
+  if (await sha256(code) !== ADMIN_HASH) { $('adminMsg').textContent = t('Неверный код.'); $('adminCode').select(); return; }
   isAdmin = true; store.set('echo_admin', true); exposeDebug();
   sfx.win(); renderLevels();
 });
@@ -2563,10 +2643,10 @@ function startLevel(i) {
   show(null);
   $('hud').classList.remove('hidden');
   $('flash').style.opacity = 0;
-  $('hLevel').textContent = `${String(i + 1).padStart(2, '0')} · ${L.name}`;
-  $('iNum').textContent = `Уровень ${String(i + 1).padStart(2, '0')}`;
-  $('iName').textContent = L.name;
-  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')).replace('{water}', bindLabel('water')).replace('{crouch}', bindLabel('crouch')) : `Собери ${L.cellsN} энергоячеек.`;
+  $('hLevel').textContent = `${String(i + 1).padStart(2, '0')} · ${levelText(i, 'name')}`;
+  $('iNum').textContent = t('Уровень {0}', String(i + 1).padStart(2, '0'));
+  $('iName').textContent = levelText(i, 'name');
+  $('iText').textContent = settings.hints ? (touchMode && levelText(i, 'introTouch') || levelText(i, 'intro')).replace('{decoy}', bindLabel('decoy')).replace('{water}', bindLabel('water')).replace('{crouch}', bindLabel('crouch')) : t('Собери {0} энергоячеек.', L.cellsN);
   touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
   resetBlackout(L.blackout);
   dbg.used = dbg.god || dbg.see || dbg.fast;
@@ -2614,7 +2694,7 @@ function syncSettingsUI() {
   $('optHints').classList.toggle('on', settings.hints);
   $('optJoySize').value = settings.joyScale;
   $('optRunAt').value = settings.runAt;
-  $('optRunAtVal').textContent = settings.runAt >= 100 ? '(только у самого края)' : `(с ${settings.runAt}% отклонения)`;
+  $('optRunAtVal').textContent = settings.runAt >= 100 ? t('(только у самого края)') : t('(с {0}% отклонения)', settings.runAt);
   renderBinds();
 }
 $('optJoySize').oninput = (e) => { settings.joyScale = +e.target.value; applyJoyLayout(); saveSettings(); };
@@ -2626,13 +2706,13 @@ function renderBinds() {
   cancelRebind(true);
   const list = $('bindList'); list.innerHTML = '';
   for (const [a, name] of ACTIONS) {
-    const n = document.createElement('div'); n.className = 'bn'; n.textContent = name; list.appendChild(n);
+    const n = document.createElement('div'); n.className = 'bn'; n.textContent = t(name); list.appendChild(n);
     settings.binds[a].forEach((code, slot) => {
       const b = document.createElement('button');
       b.className = 'bind' + (code ? '' : ' empty');
       b.id = `bind-${a}-${slot}`;
       b.textContent = keyLabel(code);
-      b.title = 'Нажми, чтобы назначить другую клавишу';
+      b.title = t('Нажми, чтобы назначить другую клавишу');
       b.onclick = () => startRebind(a, slot, b);
       b.addEventListener('mousedown', (e) => {
         // кнопка мыши назначается, только если кликнуть по ожидающей ячейке
@@ -2648,7 +2728,7 @@ function startRebind(a, slot, el) {
   if (rebind && rebind.el === el) return;
   cancelRebind(true);
   rebind = { action: a, slot, el, armed: false };
-  el.classList.add('wait'); el.textContent = 'Нажми…';
+  el.classList.add('wait'); el.textContent = t('Нажми…');
   // ЛКМ засчитывается только со следующего клика, чтобы этот клик не назначил её сразу
   setTimeout(() => { if (rebind && rebind.el === el) rebind.armed = true; }, 0);
 }
@@ -2668,8 +2748,8 @@ function assignBind(code) {
   });
   settings.binds[action][slot] = code;
   saveSettings(); renderBinds();
-  let msg = moved.length ? `${keyLabel(code)} убрана с «${moved.join('», «')}».` : '';
-  if (code && code.startsWith('Control')) msg += ' Осторожно: Ctrl вместе с W закрывает вкладку браузера.';
+  let msg = moved.length ? t('{0} убрана с «{1}».', keyLabel(code), moved.map(n => t(n)).join(t('», «'))) : '';
+  if (code && code.startsWith('Control')) msg += t(' Осторожно: Ctrl вместе с W закрывает вкладку браузера.');
   $('bindMsg').textContent = msg.trim();
 }
 function rebindKey(e) {
@@ -2681,7 +2761,7 @@ function rebindKey(e) {
 // клик мимо ожидающей ячейки — отмена
 addEventListener('mousedown', (e) => { if (rebind && !rebind.el.contains(e.target)) cancelRebind(); }, true);
 function fillBindLabels() { document.querySelectorAll('[data-bind]').forEach(s => { s.textContent = bindLabel(s.dataset.bind); }); }
-$('bindReset').onclick = () => { sfx.click(); settings.binds = copyBinds(BINDS_DEFAULT); saveSettings(); renderBinds(); $('bindMsg').textContent = 'Клавиши вернулись к стандартным.'; };
+$('bindReset').onclick = () => { sfx.click(); settings.binds = copyBinds(BINDS_DEFAULT); saveSettings(); renderBinds(); $('bindMsg').textContent = t('Клавиши вернулись к стандартным.'); };
 $('optJoyEdit').onclick = () => { sfx.click(); show('layout'); };
 $('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings'); };
 $('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
@@ -2697,10 +2777,10 @@ $('optHints').onclick = () => { settings.hints = !settings.hints; syncSettingsUI
 let resetArmed = 0;
 $('optReset').onclick = () => {
   const b = $('optReset');
-  if (time - resetArmed > 3) { resetArmed = time; b.textContent = 'Точно? Ещё раз'; return; }
+  if (time - resetArmed > 3) { resetArmed = time; b.textContent = t('Точно? Ещё раз'); return; }
   progress = { unlocked: 1, levels: {} }; store.set('echo_progress', progress);
-  resetArmed = 0; b.textContent = 'Сброшено';
-  setTimeout(() => { b.textContent = 'Сбросить'; }, 1500);
+  resetArmed = 0; b.textContent = t('Сброшено');
+  setTimeout(() => { b.textContent = t('Сбросить'); }, 1500);
 };
 
 // ================= ввод =================
@@ -2923,7 +3003,7 @@ function watchPerf(dt) {
   if (fps >= 40) return;
   settings.quality = settings.quality === 'high' ? 'medium' : 'low';
   applyQuality(); saveSettings();
-  showMsg(`ГРАФИКА СНИЖЕНА ДО ${settings.quality === 'medium' ? 'СРЕДНЕЙ' : 'НИЗКОЙ'} — ТАК ПЛАВНЕЕ`, 3);
+  showMsg(t('ГРАФИКА СНИЖЕНА ДО {0} — ТАК ПЛАВНЕЕ', t(settings.quality === 'medium' ? 'СРЕДНЕЙ' : 'НИЗКОЙ')), 3);
 }
 function tick(dt) {
   updateMusic(dt);
@@ -2984,10 +3064,106 @@ function render() {
   }
 }
 
+// ---- перевод разметки: русские фрагменты текста меняются на английские из словаря ----
+// При запуске запоминаем исходные русские тексты (кроме того, что заполняется кодом).
+const EN_TEXT = {
+  'ЭХ': 'ECH', 'О': 'O', 'ЭХО-01': 'ECHO-01', 'Сонар': 'Sonar', 'Приманка': 'Decoy', 'Водомёт': 'Water gun',
+  'Охотник невидим и слеп. Но слышит каждый твой шаг.': 'The Hunter is invisible and blind. But it hears every step you take.',
+  'Играть': 'Play', 'Робот': 'Robot', 'Как играть': 'How to play', 'Настройки': 'Settings', 'На весь экран': 'Fullscreen',
+  'Уровни': 'Levels', 'Админ': 'Admin', 'Войти': 'Enter', 'Выйти из режима админа': 'Leave admin mode', '← Назад': '← Back',
+  'Раскраски открываются звёздами за уровни. Камера показывает ЭХО-01 вживую.': 'Skins unlock with stars from levels. The camera shows ECHO-01 live.',
+  'Одно правило:': 'One rule:',
+  'каждый звук — это круг на полу. Если круг коснулся Охотника, он слышит тебя и идёт к источнику.': 'every sound is a ring on the floor. If a ring touches a Hunter, it hears you and heads for the source.',
+  'Охотник невидим.': 'The Hunter is invisible.',
+  'Его выдают только тёмные круги от шагов. Вблизи камуфляж сбоит, и его становится видно.': 'Only the dark rings of its steps give it away. Up close its camouflage glitches and it becomes visible.',
+  '(удерживай': '(hold',
+  ') — оранжевый круг. Там, где круг коснулся Охотника, остаётся его слепок, а энергоячейки в радиусе отмечаются на экране. Чем больше круг, тем дальше тебя слышно.':
+    ') — an orange ring. Where it touches a Hunter, it leaves an imprint of it, and energy cells in range are marked on screen. The bigger the ring, the farther you are heard.',
+  ') летит в точку под курсором, даже через стены. Охотник побежит на звук.': ') flies to the point under the cursor, even over walls. The Hunter will run to the sound.',
+  ') появляется с 3-го уровня. В нём один заряд: струя летит в сторону курсора и, попав в Охотника, замыкает его на 4,5 секунды. Пока он искрит, он виден и не опасен. Брызги шумят — их слышат остальные. Можно нести до двух водомётов.':
+    ') appears from level 3. It holds one shot: the jet flies towards the cursor and short-circuits a Hunter for 4.5 seconds. While it sparks, it is visible and harmless. Splashes are noisy — the others hear them. You can carry up to two.',
+  'Подкрепление': 'Reinforcements',
+  'с 6-го уровня: за каждую подобранную ячейку где-то далеко просыпается ещё один Охотник.': 'from level 6: every cell you pick up wakes another Hunter somewhere far away.',
+  'Шкафы': 'Lockers', 'с 2-го уровня: присядь (': 'from level 2: crouch (',
+  ') рядом со шкафом — спрячешься. Внутри тебя не видно, сердце быстро успокаивается, и стенки глушат его стук. Охотник заглянет в шкаф, только если залезть прямо у него на глазах (ближе 2 м) или если сердце застучит при сильной панике. Двинься — и вылезешь.':
+    ') next to a locker to hide. Inside you are invisible, your heart calms down fast and the walls muffle it. A Hunter looks inside only if it saw you get in (closer than 2 m) or your heart pounds in a strong panic. Move to get out.',
+  'Двери': 'Doors',
+  'с 5-го уровня открываются сами, когда подходишь, и закрываются за спиной. Закрытая дверь закрывает обзор, а Охотнику приходится её выламывать — это громко и занимает пару секунд.':
+    'from level 5 open by themselves as you approach and close behind you. A closed door blocks the view, and a Hunter has to break it down — loudly, and it takes a couple of seconds.',
+  'Блэкаут': 'Blackout',
+  'с 8-го уровня: иногда свет мигает и гаснет секунд на двадцать. Тогда виден только круг света вокруг робота, а сонар ненадолго освещает стены.':
+    'from level 8: sometimes the lights flicker and go out for about twenty seconds. Then you only see a circle of light around the robot, and sonar briefly lights up the walls.',
+  'в главном меню: раскраски для ЭХО-01 открываются звёздами за уровни.': 'in the main menu: skins for ECHO-01 unlock with stars from levels.',
+  'Об игре: ЭХО сделана на': 'About: ECHO is built with', '(лицензия MIT), шрифт': '(MIT license), font',
+  '(SIL OFL 1.1). Модели, звуки и музыка созданы в коде игры.': '(SIL OFL 1.1). Models, sounds and music are generated in code.',
+  'Страх слышен.': 'Fear is loud.',
+  'Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (': 'When a Hunter is near, your heart pounds, and above 70% every beat makes a red ring. Crouch (',
+  ') и замри, чтобы успокоиться.': ') and stay still to calm down.',
+  'Бег': 'Running', 'громкий,': 'is loud,', 'ходьба': 'walking', 'тихая,': 'is quiet,', 'присед': 'crouching', 'беззвучный.': 'is silent.',
+  'На телефоне:': 'On a phone:',
+  'тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.':
+    'drag the round stick at the bottom to walk, all the way to run. Next to it is the "Crouch" button, it toggles on tap. Hold the "Sonar" card. Drag the "Decoy" card to a spot or just tap it to throw forward. The stick position and size can be changed in Settings.',
+  'Собери все': 'Collect all', 'энергоячейки': 'energy cells', '— откроется выход. После последней ячейки Охотники приходят в ярость.': '— the exit opens. After the last cell the Hunters go into a frenzy.',
+  'Звёзды:': 'Stars:', '★ пройти уровень · ★ уложиться в норму времени · ★ ни разу не попасться на глаза.': '★ finish the level · ★ beat the target time · ★ never get spotted.',
+  'Управление': 'Controls', 'Параметры': 'Options', 'Сенсорное управление': 'Touch controls', 'Стик': 'Stick',
+  'Тяни стик — идти. До края круга — бег. Место и размер меняются во вкладке «Параметры»': 'Drag the stick to walk, to the edge to run. Position and size are in the "Options" tab',
+  'Удерживай карточку для заряда, отпусти — круг': 'Hold the card to charge, release for a ring',
+  'Тяни карточку в точку броска; нажатие — бросок вперёд': 'Drag the card to the throw spot; tap to throw forward',
+  'Тяни карточку в сторону Охотника; нажатие — выстрел вперёд': 'Drag the card towards a Hunter; tap to shoot forward',
+  'Присесть': 'Crouch', 'Круглая кнопка рядом со стиком: нажми, чтобы присесть или встать': 'Round button next to the stick: tap to crouch or stand up',
+  'Повернуть камеру на 90°': 'Rotate the camera by 90°', 'Пауза': 'Pause', 'Клавиатура и мышь': 'Keyboard and mouse',
+  'Нажми на клавишу в таблице, затем новую клавишу. Для кнопки мыши кликни по ней этой кнопкой.': 'Click a key in the table, then press the new key. For a mouse button, click the slot with that button.',
+  '— отмена,': '— cancel,', '— очистить.': '— clear.', 'Колесо': 'Wheel', 'Приблизить / отдалить': 'Zoom in / out',
+  'Пауза (не меняется)': 'Pause (fixed)', 'Вернуть клавиши по умолчанию': 'Reset keys to default',
+  'Язык · Language': 'Language · Язык', 'Русский': 'Русский',
+  'Стик ходьбы и «Присесть»': 'Walk stick and "Crouch"', 'Переместить': 'Move', 'Размер стика': 'Stick size', 'Бег со стика': 'Run with the stick',
+  'Громкость': 'Volume', 'Музыка в меню': 'Menu music', 'Графика': 'Graphics', '(подбирается сама)': '(adjusts automatically)',
+  'Низкая': 'Low', 'Средняя': 'Medium', 'Высокая': 'High', 'Эффект миниатюры': 'Miniature effect', '(при высокой графике)': '(with high graphics)',
+  'Тряска камеры': 'Camera shake', 'Подсказки в начале уровня': 'Hints at level start', 'Прогресс': 'Progress', 'Сбросить': 'Reset',
+  'Продолжить': 'Continue', 'Заново': 'Retry', 'В меню': 'Main menu', 'Отладка · админ': 'Debug · admin', 'Бессмертие': 'Invincible',
+  'Охотники видны всегда': 'Hunters always visible', 'Ускорение ×2': 'Speed ×2', 'Все ячейки': 'All cells', 'Победа': 'Win',
+  'С отладкой звёзды за уровень не записываются.': 'With debug on, stars are not saved.', 'Расположение стика': 'Stick position',
+  'Перетащи стик пальцем туда, где удобно. «Присесть» переедет вместе с ним. Стик справа — карточки уедут налево.': 'Drag the stick wherever is comfortable. "Crouch" moves with it. Stick on the right — the cards move to the left.',
+  'Готово': 'Done', 'По умолчанию': 'Default', 'Тяни стик — идти. До края — бег.': 'Drag the stick to walk. To the edge to run.', 'ПРИСЕСТЬ': 'CROUCH',
+  // подсказки и подписи полей
+  'Повернуть камеру': 'Rotate camera', 'Пауза (Esc)': 'Pause (Esc)', 'Код администратора': 'Admin code',
+};
+const i18nNodes = [], i18nAttrs = [];
+{
+  const skip = '#hLevel,[data-bind],#lvlGrid,#bindList,#skinGrid,#rGoals,#rButtons,#pings,#msg,#alert,#prompt,#intro';
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => n.parentElement.closest('script,style,' + skip) || !/[А-Яа-яЁё]/.test(n.nodeValue) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  for (let n; (n = w.nextNode());) i18nNodes.push({ n, ru: n.nodeValue });
+  document.querySelectorAll('[title],[placeholder],[aria-label]').forEach(el => ['title', 'placeholder', 'aria-label'].forEach(a => {
+    const v = el.getAttribute(a); if (v && /[А-Яа-яЁё]/.test(v)) i18nAttrs.push({ el, a, ru: v });
+  }));
+}
+function applyLang(lang) {
+  settings.lang = lang;
+  const en = isEn();
+  document.documentElement.lang = en ? 'en' : 'ru';
+  document.title = en ? 'ECHO' : 'ЭХО';
+  for (const { n, ru } of i18nNodes) {
+    const key = ru.replace(/\s+/g, ' ').trim();
+    n.nodeValue = en && EN_TEXT[key] !== undefined ? ru.replace(ru.trim(), EN_TEXT[key]) : ru;
+  }
+  for (const { el, a, ru } of i18nAttrs) el.setAttribute(a, en && EN_TEXT[ru] !== undefined ? EN_TEXT[ru] : ru);
+  $('btnLang').textContent = en ? 'Русский' : 'English';
+  document.querySelectorAll('#optLang button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
+  fillBindLabels();
+  syncSettingsUI();
+  if (!$('levels').classList.contains('hidden')) renderLevels();
+  if (!$('skins').classList.contains('hidden')) renderSkins();
+}
+const setLang = (lang) => { sfx.click(); applyLang(lang); saveSettings(); };
+$('btnLang').onclick = () => setLang(isEn() ? 'ru' : 'en');
+document.querySelectorAll('#optLang button').forEach(b => b.onclick = () => setLang(b.dataset.l));
+
 buildLevel(LEVELS[0]);
 resetPlayer();
 applyQuality();
-fillBindLabels();
+applyLang(settings.lang);
 { const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
 frame();
 // Снимок кадра нужного размера без интерфейса (для обложки и скриншотов страницы игры)

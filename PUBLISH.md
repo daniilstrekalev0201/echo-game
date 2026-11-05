@@ -62,6 +62,7 @@ EN: A stealth escape from invisible hunters who hear every step you take.
 - **Страх слышен**: когда Охотник рядом, сердце бьётся громче — присядь и успокойся
 - 10 уровней, 3 звезды на каждом, 8 раскрасок робота
 - Играется в браузере на компьютере и телефоне
+- Русский и английский язык, переключаются в меню
 
 **Управление (компьютер):** WASD — идти, Shift — бег, C — присесть, ЛКМ/Пробел — сонар, ПКМ/F — приманка, R — водомёт, Q/E — повернуть камеру, Esc — пауза. Любую клавишу можно переназначить в настройках.
 **Телефон:** стик ходьбы и кнопка «Присесть» слева, карточки «Сонар», «Приманка» и «Водомёт» справа.
@@ -81,8 +82,9 @@ You are ECHO-01, a small robot. Collect the energy cells and get out. But the ma
 - **Fear is loud**: when a Hunter is near, your heart pounds — crouch and calm down
 - 10 levels, 3 stars each, 8 robot skins
 - Plays in the browser on desktop and mobile
+- English and Russian, switchable in the menu
 
-The game interface is in Russian.
+The game is available in English and Russian (switch in the main menu or in Settings).
 
 **Controls (desktop):** WASD move, Shift run, C crouch, LMB/Space sonar, RMB/F decoy, R water pistol, Q/E rotate camera, Esc pause. All keys can be rebound in Settings.
 **Mobile:** movement stick and Crouch button on the left, Sonar / Decoy / Water cards on the right.
