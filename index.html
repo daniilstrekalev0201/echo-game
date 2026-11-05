@@ -126,6 +126,16 @@
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
   .opt:last-child { border-bottom: 0; }
   input[type=range] { width: 200px; accent-color: var(--orange); }
+  .bindHint { font-size: 14px; color: #5d5d58; line-height: 1.45; margin: 4px 0 12px; }
+  .binds { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 8px; align-items: center; font-size: 15px; }
+  .binds .bn { min-width: 0; }
+  .bind { min-width: 78px; padding: 5px 10px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 7px; background: #fff;
+    font: 600 15px "Barlow Condensed", sans-serif; color: var(--ink); cursor: pointer; }
+  .bind:hover { border-color: var(--orange); }
+  .bind.empty { color: #b2b2ac; }
+  .bind.wait { border-color: var(--orange); color: var(--orange); background: rgba(242, 138, 30, 0.08); }
+  .bindMsg { min-height: 20px; font-size: 14px; color: var(--orange); margin: 8px 0 4px; }
+  .bindFixed { margin-top: 6px; }
   .seg { display: flex; border: 2px solid var(--line); border-radius: 9px; overflow: hidden; flex: none; }
   .seg button { font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: 0.04em; padding: 7px 11px; border: 0; background: #fff;
     color: var(--dim); cursor: pointer; }
@@ -269,9 +279,9 @@
     <h2>Как играть</h2>
     <div class="rule"><b>Одно правило:</b> каждый звук — это круг на полу. Если круг коснулся Охотника, он слышит тебя и идёт к источнику.</div>
     <p><b>Охотник невидим.</b> Его выдают только тёмные круги от шагов. Вблизи камуфляж сбоит, и его становится видно.</p>
-    <p><b>Сонар</b> (удерживай ЛКМ или Пробел) — оранжевый круг. Там, где круг коснулся Охотника, остаётся его слепок, а энергоячейки в радиусе отмечаются на экране. Чем больше круг, тем дальше тебя слышно.</p>
-    <p><b>Приманка</b> (ПКМ или F) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
-    <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (C) и замри, чтобы успокоиться.</p>
+    <p><b>Сонар</b> (удерживай <span data-bind="sonar"></span>) — оранжевый круг. Там, где круг коснулся Охотника, остаётся его слепок, а энергоячейки в радиусе отмечаются на экране. Чем больше круг, тем дальше тебя слышно.</p>
+    <p><b>Приманка</b> (<span data-bind="decoy"></span>) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
+    <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (<span data-bind="crouch"></span>) и замри, чтобы успокоиться.</p>
     <p><b>Бег</b> громкий, <b>ходьба</b> тихая, <b>присед</b> беззвучный.</p>
     <p class="touchOnly"><b>На телефоне:</b> тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.</p>
     <p>Собери все <b>энергоячейки</b> — откроется выход. После последней ячейки Охотники приходят в ярость.</p>
@@ -297,27 +307,20 @@
         </div>
         <h3>Клавиатура и мышь</h3>
       </div>
-      <h3>Движение</h3>
-      <div class="keys">
-        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div><div>Идти (относительно камеры)</div>
-        <div><kbd>Shift</kbd></div><div>Бежать — быстро, но громко</div>
-        <div><kbd>C</kbd></div><div>Присесть — медленно и беззвучно</div>
-      </div>
-      <h3>Действия</h3>
-      <div class="keys">
-        <div><kbd>ЛКМ</kbd><kbd>Пробел</kbd></div><div>Сонар: удерживай для заряда, отпусти — круг</div>
-        <div><kbd>ПКМ</kbd><kbd>F</kbd></div><div>Бросить приманку в точку под курсором</div>
-      </div>
-      <h3>Камера и меню</h3>
-      <div class="keys">
-        <div><kbd>Q</kbd><kbd>E</kbd></div><div>Повернуть камеру на 90°</div>
+      <p class="bindHint">Нажми на клавишу в таблице, затем новую клавишу. Для кнопки мыши кликни по ней этой кнопкой.
+        <b>Esc</b> — отмена, <b>Backspace</b> — очистить.</p>
+      <div class="binds" id="bindList"></div>
+      <div class="bindMsg" id="bindMsg" aria-live="polite"></div>
+      <div class="keys bindFixed">
         <div><kbd>Колесо</kbd></div><div>Приблизить / отдалить</div>
-        <div><kbd>Esc</kbd></div><div>Пауза</div>
+        <div><kbd>Esc</kbd></div><div>Пауза (не меняется)</div>
       </div>
+      <button class="b" id="bindReset" style="font-size:15px;padding:8px 14px;margin-top:14px">Вернуть клавиши по умолчанию</button>
     </div>
     <div id="tOptions" class="hidden">
       <div class="opt touchOnly"><span>Стик ходьбы и «Присесть»</span><button class="b" id="optJoyEdit" style="font-size:15px;padding:8px 14px">Переместить</button></div>
       <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
+      <div class="opt touchOnly"><span>Бег со стика <small class="optNote" id="optRunAtVal"></small></span><input type="range" id="optRunAt" min="60" max="100" step="5"></div>
       <div class="opt"><span>Громкость</span><input type="range" id="optVol" min="0" max="100"></div>
       <div class="opt"><span>Графика <small class="optNote" id="optQualityNote">(подбирается сама)</small></span>
         <div class="seg" id="optQuality"><button data-q="low">Низкая</button><button data-q="medium">Средняя</button><button data-q="high">Высокая</button></div></div>
@@ -394,7 +397,7 @@ const LEVELS = [
   { name: 'Склад', cells: 7, cellsN: 3, hunters: 1, turrets: 0, decoys: 2, speed: 0.85, par: 110,
     intro: 'Охотник невидим — смотри на тёмные круги его шагов. Собери 3 энергоячейки и доберись до выхода.' },
   { name: 'Цех', cells: 9, cellsN: 4, hunters: 1, turrets: 0, decoys: 4, speed: 1.0, par: 170,
-    intro: 'Приманки (ПКМ) летят через стены. Охотник побежит на звук, а ты — в другую сторону.',
+    intro: 'Приманки ({decoy}) летят через стены. Охотник побежит на звук, а ты — в другую сторону.',
     introTouch: 'Тяни карточку «Приманка» в нужную точку — она летит через стены. Охотник побежит на звук, а ты — в другую сторону.' },
   { name: 'Арсенал', cells: 9, cellsN: 4, hunters: 2, turrets: 0, decoys: 4, speed: 1.0, par: 200,
     intro: 'Охотников двое. Сонар оставляет слепки обоих — следи, кто куда идёт.' },
@@ -423,6 +426,38 @@ if (!savedSettings.quality && savedSettings.shadows === false) { savedSettings.q
 const settings = Object.assign({ volume: 80, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', qualityAuto: true, tilt: true,
   shake: true, hints: true, ...JOY_DEFAULT }, savedSettings);
 delete settings.shadows;
+
+// ---- управление: каждое действие — до двух клавиш или кнопок мыши (Mouse0 — ЛКМ, Mouse2 — ПКМ) ----
+const ACTIONS = [
+  ['up', 'Вперёд'], ['down', 'Назад'], ['left', 'Влево'], ['right', 'Вправо'],
+  ['run', 'Бег'], ['crouch', 'Присесть'], ['sonar', 'Сонар'], ['decoy', 'Приманка'],
+  ['camLeft', 'Камера влево'], ['camRight', 'Камера вправо'],
+];
+const BINDS_DEFAULT = {
+  up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
+  run: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', null], sonar: ['Mouse0', 'Space'], decoy: ['Mouse2', 'KeyF'],
+  camLeft: ['KeyQ', null], camRight: ['KeyE', null],
+};
+const copyBinds = (b) => JSON.parse(JSON.stringify(b));
+settings.binds = Object.assign(copyBinds(BINDS_DEFAULT), settings.binds || {});
+settings.runAt = settings.runAt || 90;
+const KEY_NAMES = {
+  Mouse0: 'ЛКМ', Mouse1: 'СКМ', Mouse2: 'ПКМ', Mouse3: 'Мышь 4', Mouse4: 'Мышь 5',
+  Space: 'Пробел', ShiftLeft: 'Л.Shift', ShiftRight: 'П.Shift', ControlLeft: 'Л.Ctrl', ControlRight: 'П.Ctrl',
+  AltLeft: 'Л.Alt', AltRight: 'П.Alt', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+  Enter: 'Enter', Tab: 'Tab', CapsLock: 'Caps', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']',
+  Semicolon: ';', Quote: "'", Backslash: '\\', Comma: ',', Period: '.', Slash: '/',
+};
+function keyLabel(code) {
+  if (!code) return '—';
+  if (KEY_NAMES[code]) return KEY_NAMES[code];
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return 'Num ' + code.slice(6);
+  return code;
+}
+const bindLabel = (a) => settings.binds[a].filter(Boolean).map(keyLabel).join(' или ') || 'не назначено';
+const actionsOf = (code) => ACTIONS.map(([a]) => a).filter(a => settings.binds[a].includes(code));
 let progress = Object.assign({ unlocked: 1, levels: {} }, store.get('echo_progress', {}));
 
 // ================= рендер =================
@@ -1549,15 +1584,15 @@ function updateThrown(dt) {
 }
 
 function updatePlayer(dt) {
-  let fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
-  let str = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  let fwd = (held('up') ? 1 : 0) - (held('down') ? 1 : 0);
+  let str = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
   const joyOn = joy.id !== null && joy.mag > 0.18;
   if (joyOn) { fwd = -joy.y; str = joy.x; }
   const moving = fwd !== 0 || str !== 0;
-  player.crouch = !!keys.KeyC || touchCrouch;
+  player.crouch = held('crouch') || touchCrouch;
   if (player.stamina <= 0) player.exhausted = true;
   if (player.exhausted && player.stamina > 30) player.exhausted = false;
-  const running = (keys.ShiftLeft || keys.ShiftRight || (joyOn && joy.mag > 0.9)) && moving && !player.crouch && !player.exhausted;
+  const running = (held('run') || (joyOn && joy.mag >= settings.runAt / 100)) && moving && !player.crouch && !player.exhausted;
   $('joy').classList.toggle('run', running);
   const speed = player.crouch ? CFG.crouch : running ? CFG.run : CFG.walk;
   if (running) player.stamina = Math.max(0, player.stamina - CFG.stamDrain * dt);
@@ -1818,7 +1853,7 @@ function showResult(won, stars = 0) {
   const ok = (b) => b ? '<span class="ok">✓</span>' : '<span>✗</span>';
   $('rGoals').innerHTML = won
     ? `${ok(true)} Уровень пройден<br>${ok(playTime <= L.par)} Время ${fmt(playTime)} (норма ${fmt(L.par)})<br>${ok(!wasChased)} Ни разу не заметили`
-    : `Ячейки: <b>${player.got} / ${L.cellsN}</b><br>Время: <b>${fmt(playTime)}</b><br><span style="color:var(--dim)">Совет: присядь (${touchMode ? 'кнопка «Присесть»' : 'C'}), когда Охотник рядом — так тише и сердце успокаивается.</span>`;
+    : `Ячейки: <b>${player.got} / ${L.cellsN}</b><br>Время: <b>${fmt(playTime)}</b><br><span style="color:var(--dim)">Совет: присядь (${touchMode ? 'кнопка «Присесть»' : bindLabel('crouch')}), когда Охотник рядом — так тише и сердце успокаивается.</span>`;
   const btns = $('rButtons'); btns.innerHTML = '';
   const mk = (text, cls, fn) => { const b = document.createElement('button'); b.className = 'b ' + cls; b.textContent = text; b.onclick = () => { sfx.click(); fn(); }; btns.appendChild(b); };
   if (won && !last) mk('Далее', 'primary', () => startLevel(levelIdx + 1));
@@ -1833,6 +1868,7 @@ let settingsBack = 'mainMenu';
 function show(id) {
   for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
   if (id === 'levels') renderLevels();
+  if (id !== 'settings') cancelRebind(true);
   // стик виден в игре и в редакторе расположения
   document.body.classList.toggle('editing', id === 'layout');
   document.body.classList.toggle('showJoy', (id === null && state === 'playing') || id === 'layout');
@@ -1867,7 +1903,7 @@ function startLevel(i) {
   $('hLevel').textContent = `${String(i + 1).padStart(2, '0')} · ${L.name}`;
   $('iNum').textContent = `Уровень ${String(i + 1).padStart(2, '0')}`;
   $('iName').textContent = L.name;
-  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro) : `Собери ${L.cellsN} энергоячеек.`;
+  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')) : `Собери ${L.cellsN} энергоячеек.`;
   touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
   $('intro').style.opacity = 1; introT = settings.hints ? 6 : 3;
   resetPerf();
@@ -1909,8 +1945,75 @@ function syncSettingsUI() {
   $('optShake').classList.toggle('on', settings.shake);
   $('optHints').classList.toggle('on', settings.hints);
   $('optJoySize').value = settings.joyScale;
+  $('optRunAt').value = settings.runAt;
+  $('optRunAtVal').textContent = settings.runAt >= 100 ? '(только у самого края)' : `(с ${settings.runAt}% отклонения)`;
+  renderBinds();
 }
 $('optJoySize').oninput = (e) => { settings.joyScale = +e.target.value; applyJoyLayout(); saveSettings(); };
+$('optRunAt').oninput = (e) => { settings.runAt = +e.target.value; syncSettingsUI(); saveSettings(); };
+
+// ---- переназначение клавиш ----
+let rebind = null;   // { action, slot, el } — ждём новую клавишу для этой ячейки
+function renderBinds() {
+  cancelRebind(true);
+  const list = $('bindList'); list.innerHTML = '';
+  for (const [a, name] of ACTIONS) {
+    const n = document.createElement('div'); n.className = 'bn'; n.textContent = name; list.appendChild(n);
+    settings.binds[a].forEach((code, slot) => {
+      const b = document.createElement('button');
+      b.className = 'bind' + (code ? '' : ' empty');
+      b.id = `bind-${a}-${slot}`;
+      b.textContent = keyLabel(code);
+      b.title = 'Нажми, чтобы назначить другую клавишу';
+      b.onclick = () => startRebind(a, slot, b);
+      b.addEventListener('mousedown', (e) => {
+        // кнопка мыши назначается, только если кликнуть по ожидающей ячейке
+        if (rebind && rebind.el === b && e.button !== 0) { e.preventDefault(); assignBind('Mouse' + e.button); }
+      });
+      b.addEventListener('mouseup', (e) => { if (rebind && rebind.el === b && e.button === 0 && rebind.armed) assignBind('Mouse0'); });
+      list.appendChild(b);
+    });
+  }
+  fillBindLabels();
+}
+function startRebind(a, slot, el) {
+  if (rebind && rebind.el === el) return;
+  cancelRebind(true);
+  rebind = { action: a, slot, el, armed: false };
+  el.classList.add('wait'); el.textContent = 'Нажми…';
+  // ЛКМ засчитывается только со следующего клика, чтобы этот клик не назначил её сразу
+  setTimeout(() => { if (rebind && rebind.el === el) rebind.armed = true; }, 0);
+}
+function cancelRebind(silent) {
+  if (!rebind) return;
+  const { action, slot, el } = rebind;
+  rebind = null;
+  el.classList.remove('wait'); el.textContent = keyLabel(settings.binds[action][slot]);
+  if (!silent) $('bindMsg').textContent = '';
+}
+function assignBind(code) {
+  const { action, slot } = rebind;
+  rebind = null;
+  const moved = [];
+  for (const [a, name] of ACTIONS) settings.binds[a].forEach((c, s) => {
+    if (c === code && !(a === action && s === slot)) { settings.binds[a][s] = null; moved.push(name); }
+  });
+  settings.binds[action][slot] = code;
+  saveSettings(); renderBinds();
+  let msg = moved.length ? `${keyLabel(code)} убрана с «${moved.join('», «')}».` : '';
+  if (code && code.startsWith('Control')) msg += ' Осторожно: Ctrl вместе с W закрывает вкладку браузера.';
+  $('bindMsg').textContent = msg.trim();
+}
+function rebindKey(e) {
+  e.preventDefault();
+  if (e.code === 'Escape') { cancelRebind(); return; }
+  if (e.code === 'Backspace' || e.code === 'Delete') { assignBind(null); return; }
+  assignBind(e.code);
+}
+// клик мимо ожидающей ячейки — отмена
+addEventListener('mousedown', (e) => { if (rebind && !rebind.el.contains(e.target)) cancelRebind(); }, true);
+function fillBindLabels() { document.querySelectorAll('[data-bind]').forEach(s => { s.textContent = bindLabel(s.dataset.bind); }); }
+$('bindReset').onclick = () => { sfx.click(); settings.binds = copyBinds(BINDS_DEFAULT); saveSettings(); renderBinds(); $('bindMsg').textContent = 'Клавиши вернулись к стандартным.'; };
 $('optJoyEdit').onclick = () => { sfx.click(); show('layout'); };
 $('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings'); };
 $('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
@@ -1932,7 +2035,21 @@ $('optReset').onclick = () => {
 };
 
 // ================= ввод =================
+const held = (a) => settings.binds[a].some(c => c && keys[c]);
+function pressCode(code) {
+  if (state !== 'playing') return;
+  for (const a of actionsOf(code)) {
+    if (a === 'sonar') pressSonar();
+    else if (a === 'decoy') throwDecoy();
+    else if (a === 'camLeft') cam.azT += Math.PI / 2;
+    else if (a === 'camRight') cam.azT -= Math.PI / 2;
+  }
+}
+function releaseCode(code) {
+  if (state === 'playing' && actionsOf(code).includes('sonar') && !held('sonar')) releaseSonar();
+}
 addEventListener('keydown', (e) => {
+  if (rebind) { rebindKey(e); return; }
   if (e.code === 'Escape') {
     if (state === 'playing') pauseGame();
     else if (state === 'paused' && !$('pause').classList.contains('hidden')) resume();
@@ -1942,14 +2059,27 @@ addEventListener('keydown', (e) => {
   }
   keys[e.code] = true;
   if (state !== 'playing') return;
-  if (e.code === 'Space') { if (!e.repeat) pressSonar(); e.preventDefault(); }
-  if (e.code === 'KeyF' && !e.repeat) throwDecoy();
-  if (e.code === 'KeyQ' && !e.repeat) cam.azT += Math.PI / 2;
-  if (e.code === 'KeyE' && !e.repeat) cam.azT -= Math.PI / 2;
+  if (actionsOf(e.code).length) e.preventDefault();   // пробел и стрелки не прокручивают страницу
+  if (!e.repeat) pressCode(e.code);
 });
 addEventListener('keyup', (e) => {
   keys[e.code] = false;
-  if (e.code === 'Space' && state === 'playing') releaseSonar();
+  releaseCode(e.code);
+});
+// кнопки мыши — тоже «клавиши»: Mouse0, Mouse1, Mouse2…
+let lastTouch = 0;
+addEventListener('touchstart', () => { lastTouch = performance.now(); }, { passive: true, capture: true });
+canvas.addEventListener('mousedown', (e) => {
+  if (performance.now() - lastTouch < 800) return;   // мышиные события, которые браузер шлёт после касания
+  if (touchMode && !isCoarse) setTouchMode(false);
+  if (e.button === 1) e.preventDefault();
+  keys['Mouse' + e.button] = true;
+  pressCode('Mouse' + e.button);
+});
+addEventListener('mouseup', (e) => {
+  if (!keys['Mouse' + e.button]) return;
+  keys['Mouse' + e.button] = false;
+  releaseCode('Mouse' + e.button);
 });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; pauseGame(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
@@ -1968,13 +2098,7 @@ addEventListener('touchstart', () => { if (!touchMode) setTouchMode(true); }, { 
 const capture = (el, e) => { try { el.setPointerCapture(e.pointerId); } catch {} };
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse') {
-    if (touchMode && !isCoarse) setTouchMode(false);
-    if (state !== 'playing') return;
-    if (e.button === 0) pressSonar();
-    if (e.button === 2) throwDecoy();
-    return;
-  }
+  if (e.pointerType === 'mouse') return;   // мышь обрабатывается в mousedown
   if (!touchMode) setTouchMode(true);
 });
 
@@ -2038,7 +2162,6 @@ btnCrouch.addEventListener('pointerup', endDrag);
 btnCrouch.addEventListener('pointercancel', endDrag);
 addEventListener('resize', applyJoyLayout);
 applyJoyLayout();
-addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse' && e.button === 0 && state === 'playing') releaseSonar(); });
 addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
   if (touchMode && !isCoarse && (e.movementX || e.movementY)) setTouchMode(false);
@@ -2177,6 +2300,7 @@ function render() {
 buildLevel(LEVELS[0]);
 resetPlayer();
 applyQuality();
+fillBindLabels();
 frame();
 window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
