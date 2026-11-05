@@ -115,6 +115,11 @@
   .lvl .st { font-size: 20px; color: var(--orange); margin-top: 8px; letter-spacing: 0.1em; }
   .lvl .st .e { color: var(--line); }
   .lvl .bt { font-size: 13px; color: var(--dim); }
+  .lvl .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .lvl .tg { font: 600 11px "Barlow Condensed", sans-serif; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px;
+    border-radius: 4px; background: #ecece8; color: #77776f; }
+  .lvl .tg.w { background: #e1f0fc; color: #2a7fc4; }
+  .lvl .tg.r { background: #fbe3e4; color: #c22a35; }
   .lvl.locked { cursor: not-allowed; background: #f1f1ee; }
   .lvl.locked .n, .lvl.locked .nm { color: #b9b9b3; }
   .lvl.locked:hover { border-color: var(--line); }
@@ -249,6 +254,10 @@
       <svg viewBox="0 0 56 56" fill="none" stroke="#9a9a94" stroke-width="3" stroke-linecap="round">
         <circle cx="28" cy="30" r="13"/><path d="M15 30h26"/><path d="M28 10v-4M40 14l3-3M16 14l-3-3"/></svg>
       <div class="num cond">02</div><div class="nm cond">Приманка</div></div>
+    <div class="icard" id="cWater"><div class="cnt cond" id="hWater" style="color:#3aa7ff">0</div>
+      <svg viewBox="0 0 56 56" fill="none" stroke="#9a9a94" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 20h30l3 3v5H24l-4 4v12h-8l2-14-6-4z"/><path d="M41 23h5"/><path d="M50 30c2 3 2 5 0 6-2-1-2-3 0-6z" stroke="#3aa7ff"/></svg>
+      <div class="num cond">03</div><div class="nm cond">Водомёт</div></div>
   </div>
 </div>
 
@@ -281,6 +290,8 @@
     <p><b>Охотник невидим.</b> Его выдают только тёмные круги от шагов. Вблизи камуфляж сбоит, и его становится видно.</p>
     <p><b>Сонар</b> (удерживай <span data-bind="sonar"></span>) — оранжевый круг. Там, где круг коснулся Охотника, остаётся его слепок, а энергоячейки в радиусе отмечаются на экране. Чем больше круг, тем дальше тебя слышно.</p>
     <p><b>Приманка</b> (<span data-bind="decoy"></span>) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
+    <p><b>Водомёт</b> (<span data-bind="water"></span>) появляется с 3-го уровня. В нём один заряд: струя летит в сторону курсора и, попав в Охотника, замыкает его на 4,5 секунды. Пока он искрит, он виден и не опасен. Брызги шумят — их слышат остальные. Можно нести до двух водомётов.</p>
+    <p><b>Подкрепление</b> с 6-го уровня: за каждую подобранную ячейку где-то далеко просыпается ещё один Охотник.</p>
     <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (<span data-bind="crouch"></span>) и замри, чтобы успокоиться.</p>
     <p><b>Бег</b> громкий, <b>ходьба</b> тихая, <b>присед</b> беззвучный.</p>
     <p class="touchOnly"><b>На телефоне:</b> тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.</p>
@@ -301,6 +312,7 @@
           <div><kbd>Стик</kbd></div><div>Тяни стик — идти. До края круга — бег. Место и размер меняются во вкладке «Параметры»</div>
           <div><kbd>Сонар</kbd></div><div>Удерживай карточку для заряда, отпусти — круг</div>
           <div><kbd>Приманка</kbd></div><div>Тяни карточку в точку броска; нажатие — бросок вперёд</div>
+          <div><kbd>Водомёт</kbd></div><div>Тяни карточку в сторону Охотника; нажатие — выстрел вперёд</div>
           <div><kbd>Присесть</kbd></div><div>Круглая кнопка рядом со стиком: нажми, чтобы присесть или встать</div>
           <div><kbd>⟲</kbd><kbd>⟳</kbd></div><div>Повернуть камеру на 90°</div>
           <div><kbd>II</kbd></div><div>Пауза</div>
@@ -392,24 +404,38 @@ const CFG = {
   ring: { walk: 3.2, run: 7.5, chime: 6, decoy: 12, hunterStep: 3, alarm: 22 },
   hunter: { wander: 2.0, investigate: 3.4, chase: 4.5, perCell: 0.12, frenzy: 0.35, sense: 2.4, keep: 9, catch: 0.85 },
   decoysMax: 3, throwRange: 14,
+  waterMax: 2, waterRange: 11, waterSpeed: 20, stun: 4.5,
 };
+// pistols — сколько водомётов лежит на уровне; reinforce — сколько всего Охотников может стать,
+// если за каждую подобранную ячейку просыпается новый (0 — подкрепления нет)
 const LEVELS = [
-  { name: 'Склад', cells: 7, cellsN: 3, hunters: 1, turrets: 0, decoys: 2, speed: 0.85, par: 110,
+  { name: 'Склад', cells: 7, cellsN: 3, hunters: 1, turrets: 0, decoys: 2, pistols: 0, reinforce: 0, speed: 0.85, par: 110,
     intro: 'Охотник невидим — смотри на тёмные круги его шагов. Собери 3 энергоячейки и доберись до выхода.' },
-  { name: 'Цех', cells: 9, cellsN: 4, hunters: 1, turrets: 0, decoys: 4, speed: 1.0, par: 170,
+  { name: 'Цех', cells: 9, cellsN: 4, hunters: 1, turrets: 0, decoys: 4, pistols: 0, reinforce: 0, speed: 1.0, par: 170,
     intro: 'Приманки ({decoy}) летят через стены. Охотник побежит на звук, а ты — в другую сторону.',
     introTouch: 'Тяни карточку «Приманка» в нужную точку — она летит через стены. Охотник побежит на звук, а ты — в другую сторону.' },
-  { name: 'Арсенал', cells: 9, cellsN: 4, hunters: 2, turrets: 0, decoys: 4, speed: 1.0, par: 200,
-    intro: 'Охотников двое. Сонар оставляет слепки обоих — следи, кто куда идёт.' },
-  { name: 'Полигон', cells: 11, cellsN: 5, hunters: 2, turrets: 3, decoys: 5, speed: 1.05, par: 260,
+  { name: 'Арсенал', cells: 9, cellsN: 4, hunters: 2, turrets: 0, decoys: 4, pistols: 2, reinforce: 0, speed: 1.0, par: 200,
+    intro: 'Охотников двое. Здесь лежат водомёты: один заряд воды ({water}) замыкает Охотника на 4,5 секунды — он ведь робот.',
+    introTouch: 'Охотников двое. Здесь лежат водомёты: тяни карточку «Водомёт» в сторону Охотника — вода замкнёт его на 4,5 секунды.' },
+  { name: 'Полигон', cells: 11, cellsN: 5, hunters: 2, turrets: 3, decoys: 5, pistols: 2, reinforce: 0, speed: 1.05, par: 260,
     intro: 'Турели на стенах слепы, но, услышав звук, поднимают тревогу — и все Охотники бегут к источнику.' },
-  { name: 'Ядро', cells: 11, cellsN: 6, hunters: 3, turrets: 4, decoys: 6, speed: 1.1, par: 320,
-    intro: 'Последний уровень. Три Охотника и турели. Тише.' },
+  { name: 'Ядро', cells: 11, cellsN: 6, hunters: 3, turrets: 4, decoys: 6, pistols: 3, reinforce: 0, speed: 1.1, par: 320,
+    intro: 'Три Охотника и турели. Береги воду для самых опасных моментов.' },
+  { name: 'Резервуар', cells: 11, cellsN: 5, hunters: 1, turrets: 1, decoys: 5, pistols: 3, reinforce: 4, speed: 1.0, par: 290,
+    intro: 'Новое: каждая подобранная ячейка будит ещё одного Охотника. Чем больше собрал — тем теснее в лабиринте.' },
+  { name: 'Литейная', cells: 13, cellsN: 6, hunters: 2, turrets: 3, decoys: 6, pistols: 3, reinforce: 5, speed: 1.05, par: 380,
+    intro: 'Большой цех и подкрепление. Планируй маршрут так, чтобы последние ячейки были ближе к выходу.' },
+  { name: 'Глубина', cells: 13, cellsN: 6, hunters: 2, turrets: 4, decoys: 6, pistols: 2, reinforce: 5, speed: 1.05, par: 400,
+    intro: 'Темно, мало воды и много турелей. Слушай шаги.' },
+  { name: 'Узел', cells: 13, cellsN: 7, hunters: 3, turrets: 4, decoys: 7, pistols: 3, reinforce: 6, speed: 1.1, par: 450,
+    intro: 'Три Охотника сразу и ещё по одному за ячейку. Приманки и вода — твои лучшие друзья.' },
+  { name: 'Сердце', cells: 15, cellsN: 8, hunters: 3, turrets: 5, decoys: 8, pistols: 4, reinforce: 7, speed: 1.1, par: 560,
+    intro: 'Последний уровень. Самый большой лабиринт, восемь ячеек и целая стая. Удачи, ЭХО-01.' },
 ];
 const T = CFG.tile;
 const SPEED = CFG.ringSpeed;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const RING_COL = { sonar: 0xf28a1e, decoy: 0xffa424, step: 0x7b7b74, chime: 0xe8b51a, heart: 0xe2343f, hunter: 0x26262a, alarm: 0xe2343f };
+const RING_COL = { sonar: 0xf28a1e, decoy: 0xffa424, step: 0x7b7b74, chime: 0xe8b51a, heart: 0xe2343f, hunter: 0x26262a, alarm: 0xe2343f, water: 0x3aa7ff };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
 const $ = (id) => document.getElementById(id);
@@ -431,12 +457,12 @@ delete settings.shadows;
 const ACTIONS = [
   ['up', 'Вперёд'], ['down', 'Назад'], ['left', 'Влево'], ['right', 'Вправо'],
   ['run', 'Бег'], ['crouch', 'Присесть'], ['sonar', 'Сонар'], ['decoy', 'Приманка'],
-  ['camLeft', 'Камера влево'], ['camRight', 'Камера вправо'],
+  ['water', 'Водомёт'], ['camLeft', 'Камера влево'], ['camRight', 'Камера вправо'],
 ];
 const BINDS_DEFAULT = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   run: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', null], sonar: ['Mouse0', 'Space'], decoy: ['Mouse2', 'KeyF'],
-  camLeft: ['KeyQ', null], camRight: ['KeyE', null],
+  water: ['KeyR', 'Mouse1'], camLeft: ['KeyQ', null], camRight: ['KeyE', null],
 };
 const copyBinds = (b) => JSON.parse(JSON.stringify(b));
 settings.binds = Object.assign(copyBinds(BINDS_DEFAULT), settings.binds || {});
@@ -513,6 +539,18 @@ const THEMES = [
   { bg: 0xece6da, wall: [0.57, 0.62], floor: [0.61, 0.56], tint: [1.05, 1.0, 0.92], base: 0xa39d90, hemi: 0.42, sun: 2.8, props: ['stripes', 'lamps'] },
   { bg: 0x2a2a2f, wall: [0.2, 0.24], floor: [0.23, 0.2], tint: [1, 0.98, 0.97], base: 0x1c1c20, hemi: 0.3, sun: 1.3, props: ['lamps', 'pipes'],
     dark: true, lampGlow: 2.6, hunterRing: 0x0c0c0e },
+  // 6 Резервуар — сырой бирюзово-серый
+  { bg: 0xdde7ea, wall: [0.54, 0.59], floor: [0.57, 0.52], tint: [0.93, 1.0, 1.05], base: 0x8f9a9e, hemi: 0.42, sun: 2.6, props: ['pipes', 'stripes'] },
+  // 7 Литейная — тёплая ржавчина
+  { bg: 0xebe0d3, wall: [0.55, 0.6], floor: [0.58, 0.53], tint: [1.08, 0.98, 0.89], base: 0xa1968a, hemi: 0.42, sun: 2.8, props: ['lamps', 'stripes'] },
+  // 8 Глубина — тёмная синева
+  { bg: 0x252a32, wall: [0.19, 0.23], floor: [0.22, 0.19], tint: [0.93, 0.98, 1.07], base: 0x191c21, hemi: 0.3, sun: 1.3, props: ['lamps', 'pipes'],
+    dark: true, lampGlow: 2.6, hunterRing: 0x0b0c0e },
+  // 9 Узел — холодный металл, всё сразу
+  { bg: 0xe3e4e8, wall: [0.53, 0.58], floor: [0.57, 0.52], tint: [0.98, 0.99, 1.03], base: 0x919398, hemi: 0.42, sun: 2.7, props: ['pipes', 'lamps', 'stripes'] },
+  // 10 Сердце — тёмный графит с красным
+  { bg: 0x2d2727, wall: [0.2, 0.24], floor: [0.23, 0.2], tint: [1.07, 0.96, 0.94], base: 0x1e1a1a, hemi: 0.3, sun: 1.35, props: ['lamps', 'pipes', 'stripes'],
+    dark: true, lampGlow: 3, hunterRing: 0x0c0a0a },
 ];
 let theme = THEMES[0];
 function applyTheme(t) {
@@ -810,6 +848,18 @@ const sfx = {
     sTone(p, { type: 'square', f0: 900, f1: 600, vol: 0.06, dec: 0.4, delay: 0.05 });
   },
   hunterStep(x, z, v) { if (A.ctx) sNoise(panner(x, 0, z), { freq: 170, vol: v, dec: 0.16 }); },
+  squirt() {
+    if (!A.ctx) return;
+    sNoise(A.master, { type: 'bandpass', freq: 2600, q: 1.5, vol: 0.18, a: 0.01, dec: 0.35 });
+    sTone(A.master, { type: 'sine', f0: 500, f1: 900, vol: 0.05, dec: 0.15 });
+  },
+  splash(x, z) { if (A.ctx) sNoise(panner(x, 0.5, z), { freq: 1400, q: 0.6, vol: 0.35, a: 0.005, dec: 0.3 }); },
+  zap(x, z) {
+    if (!A.ctx) return;
+    const p = panner(x, 1.6, z);
+    for (let i = 0; i < 6; i++) sNoise(p, { type: 'highpass', freq: 3500, vol: 0.25, a: 0.002, dec: 0.04, delay: i * 0.07 + Math.random() * 0.04 });
+    sTone(p, { type: 'square', f0: 120, f1: 40, vol: 0.12, a: 0.01, dec: 0.9 });
+  },
   servo(x, z) { if (A.ctx) sTone(panner(x, 1, z), { type: 'square', f0: 220, f1: 330, vol: 0.05, dec: 0.12 }); },
   growl(x, z, v) {
     if (!A.ctx) return;
@@ -944,6 +994,29 @@ function findPath(ax, az, bx, bz) {
 function rbox(w, h, d, r, mat) { return new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, r), mat); }
 function shadowAll(g) { g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g; }
 
+// игрушечный водомёт: тёмный «затвор», светлая рамка с рифлёной рукоятью и прозрачный бачок с водой
+const GUN_MAT = {
+  slide: std(0x3c4654, { roughness: 0.32, metalness: 0.35, envMapIntensity: 1.0 }),
+  frame: std(0xe6dfcc, { roughness: 0.72 }),
+  grip: std(0xd8d0bb, { roughness: 0.95 }),
+  water: std(0x3aa7ff, { transparent: true, opacity: 0.62, roughness: 0.08, emissive: 0x0a3a66, emissiveIntensity: 0.5, envMapIntensity: 1.2 }),
+};
+function buildWaterGun() {
+  const g = new THREE.Group();
+  const add = (m, x, y, z) => { m.position.set(x, y, z); g.add(m); return m; };
+  add(rbox(0.12, 0.1, 0.5, 0.04, GUN_MAT.slide), 0, 0.2, 0.02);
+  for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.06, 0.008), MAT.dark), 0, 0.2, -0.16 + i * 0.025);
+  add(rbox(0.11, 0.07, 0.42, 0.03, GUN_MAT.frame), 0, 0.13, 0.03);
+  const grip = add(rbox(0.1, 0.27, 0.14, 0.04, GUN_MAT.frame), 0, -0.01, -0.15); grip.rotation.x = -0.28;
+  const pad = add(rbox(0.104, 0.18, 0.09, 0.02, GUN_MAT.grip), 0, -0.02, -0.16); pad.rotation.x = -0.28;
+  const guard = add(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.013, 6, 14, Math.PI), GUN_MAT.frame), 0, 0.1, 0.0);
+  guard.rotation.set(0, Math.PI / 2, Math.PI);
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.015), GUN_MAT.slide), 0, 0.08, 0.0);
+  const nozzle = add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.035, 0.06, 12), MAT.orange), 0, 0.2, 0.29); nozzle.rotation.x = Math.PI / 2;
+  const tank = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 16), GUN_MAT.water), 0, 0.3, -0.03); tank.rotation.x = Math.PI / 2;
+  const cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), MAT.orange), 0, 0.36, -0.08);
+  return shadowAll(g);
+}
 function buildPlayer() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const torso = rbox(0.46, 0.42, 0.34, 0.1, MAT.white); torso.position.y = 0.58; body.add(torso);
@@ -964,12 +1037,14 @@ function buildPlayer() {
   };
   const armL = limb(-0.3, 0.72, 0.22, 0.07, MAT.dark), armR = limb(0.3, 0.72, 0.22, 0.07, MAT.dark);
   const legL = limb(-0.12, 0.36, 0.16, 0.085, MAT.dark), legR = limb(0.12, 0.36, 0.16, 0.085, MAT.dark);
+  // водомёт в правой руке — виден, пока есть заряд
+  const gun = buildWaterGun(); gun.scale.setScalar(0.85); gun.position.set(0.02, -0.4, 0.06); gun.visible = false; armR.add(gun);
   shadowAll(g);
   // Робот рисуется на слое 1, его силуэт сквозь стены — на слое 2 (см. render()).
   const xray = new THREE.MeshBasicMaterial({ color: 0xf28a1e, transparent: true, opacity: 0.4, depthWrite: false, depthFunc: THREE.GreaterDepth });
   const meshes = []; g.traverse(o => { if (o.isMesh) meshes.push(o); });
   for (const m of meshes) { m.layers.set(LAYER_PLAYER); const x = new THREE.Mesh(m.geometry, xray); x.layers.set(LAYER_XRAY); m.add(x); }
-  return { g, body, head, armL, armR, legL, legR, antenna };
+  return { g, body, head, armL, armR, legL, legR, antenna, gun };
 }
 
 // материалы Охотника — «физические»: на высоком качестве камуфляж преломляет фон, как стелс-поле
@@ -1073,7 +1148,7 @@ const playerBlob = makeBlob(1.0, 0.42);
 
 // ================= уровень =================
 const level = new THREE.Group(); scene.add(level);
-const cells = [], pickups = [], ghosts = [], thrown = [], rings = [], hunters = [], turrets = [], pings = [];
+const cells = [], pickups = [], ghosts = [], thrown = [], rings = [], hunters = [], turrets = [], pings = [], guns = [], jets = [];
 let exitObj = null, L = LEVELS[0], levelIdx = 0;
 const disposables = [];
 
@@ -1104,7 +1179,38 @@ function placeItems() {
   const hunterCells = spread(list.filter(c => c.d >= maxD * 0.55), L.hunters, [start], 0);
   const cellCells = spread(list.filter(c => c.d >= 5 && !hunterCells.includes(c)), L.cellsN, [start, ...hunterCells], 3);
   const free = list.filter(c => !cellCells.includes(c) && !hunterCells.includes(c) && c.d > 2).sort(() => Math.random() - 0.5);
-  return { hunterCells, cellCells, decoyCells: free.slice(0, L.decoys), wheelCells: free.slice(L.decoys, L.decoys + 4) };
+  // водомёты — подальше от старта, чтобы за ними надо было сходить
+  const gunCells = spread(free.slice(L.decoys).filter(c => c.d >= 4), L.pistols, [start], 1);
+  const rest = free.slice(L.decoys).filter(c => !gunCells.includes(c));
+  return { hunterCells, cellCells, decoyCells: free.slice(0, L.decoys), gunCells, wheelCells: rest.slice(0, 4) };
+}
+
+// поиск места для нового Охотника: подальше от игрока и от других Охотников
+function reinforcementCell() {
+  const [px, py] = nearestOpen(...tileOf(player.x, player.z));
+  const { dist } = bfsFrom(px, py);
+  const list = [];
+  for (let y = 1; y < W; y += 2) for (let x = 1; x < W; x += 2) {
+    const d = dist[y * W + x];
+    if (d < 12) continue;
+    if (hunters.some(h => Math.hypot(h.x / T - x, h.z / T - y) < 5)) continue;
+    list.push({ x, y, d });
+  }
+  if (!list.length) return null;
+  list.sort((a, b) => b.d - a.d);
+  return list[Math.random() * Math.max(1, Math.ceil(list.length / 3)) | 0];
+}
+function spawnHunter(c, idleTime) {
+  const model = buildHunter(); level.add(model.g);
+  const blob = makeBlob(1.6, theme.dark ? 0.6 : 0.4); level.add(blob);
+  const h = {
+    x: (c.x + 0.5) * T, z: (c.y + 0.5) * T, state: 'idle', timer: idleTime, path: [], pi: 0, repath: 0, stepT: 0,
+    growlT: rand(4, 9), anim: rand(0, 6), rot: rand(0, 6), sees: false, lastKnown: null, lastGhost: -9, farT: 0, waitT: 0,
+    speedNow: 0, vis: 0, stunT: 0, model, blob,
+  };
+  setupCloak(h);
+  hunters.push(h);
+  return h;
 }
 
 function buildLevel(def) {
@@ -1112,7 +1218,7 @@ function buildLevel(def) {
   for (const d of disposables) d.dispose();
   disposables.length = 0;
   while (level.children.length) level.remove(level.children[0]);
-  for (const arr of [cells, pickups, ghosts, thrown, rings, hunters, turrets]) arr.length = 0;
+  for (const arr of [cells, pickups, ghosts, thrown, rings, hunters, turrets, guns, jets]) arr.length = 0;
   clearPings();
   exitObj = null;
 
@@ -1172,7 +1278,16 @@ function buildLevel(def) {
     const r = buildRocket(); r.position.set(x * T + 0.5 + (Math.random() * 2 | 0), hgt[y][x], y * T + 0.5 + (Math.random() * 2 | 0)); level.add(r);
   }
 
-  const { hunterCells, cellCells, decoyCells, wheelCells } = placeItems();
+  const { hunterCells, cellCells, decoyCells, gunCells, wheelCells } = placeItems();
+  for (const c of gunCells) {
+    const g = new THREE.Group(), gun = buildWaterGun(); gun.scale.setScalar(2); g.add(gun);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.5, 28).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x3aa7ff, transparent: true, opacity: 0.22, depthWrite: false }));
+    disc.position.y = 0.02; g.add(disc);
+    const x = (c.x + 0.5) * T, z = (c.y + 0.5) * T;
+    g.position.set(x, 0, z); level.add(g);
+    guns.push({ x, z, g, gun });
+  }
   for (const c of cellCells) {
     const o = buildCell(); const x = (c.x + 0.5) * T, z = (c.y + 0.5) * T;
     o.g.position.set(x, 0, z); level.add(o.g);
@@ -1185,17 +1300,7 @@ function buildLevel(def) {
   }
   for (const c of wheelCells) { const w = buildWheel(); w.position.x = (c.x + 0.5) * T + rand(-0.4, 0.4); w.position.z = (c.y + 0.5) * T + rand(-0.4, 0.4); level.add(w); }
 
-  hunterCells.forEach((c, i) => {
-    const model = buildHunter(); level.add(model.g);
-    const blob = makeBlob(1.6, theme.dark ? 0.6 : 0.4); level.add(blob);
-    const h = {
-      x: (c.x + 0.5) * T, z: (c.y + 0.5) * T, state: 'idle', timer: 4 + i * 3, path: [], pi: 0, repath: 0, stepT: 0,
-      growlT: rand(4, 9), anim: rand(0, 6), rot: rand(0, 6), sees: false, lastKnown: null, lastGhost: -9, farT: 0, waitT: 0,
-      speedNow: 0, vis: 0, model, blob,
-    };
-    setupCloak(h);
-    hunters.push(h);
-  });
+  hunterCells.forEach((c, i) => spawnHunter(c, 4 + i * 3));
 
   // турели — на стенах рядом с проходами
   if (def.turrets) {
@@ -1283,7 +1388,7 @@ const cam = { az: Math.PI / 4, azT: Math.PI / 4, dist: 20, distT: 20, el: 1.05, 
 
 function resetPlayer() {
   Object.assign(player, {
-    x: 1.5 * T, z: 1.5 * T, rot: 0, stamina: 100, exhausted: false, panic: 0, decoys: 1, got: 0,
+    x: 1.5 * T, z: 1.5 * T, rot: 0, stamina: 100, exhausted: false, panic: 0, decoys: 1, got: 0, water: 0,
     crouch: false, stepT: 0, anim: 0, charge: 0, charging: false, cooldown: 0, heartT: 0, bpm: 65, moving: false,
   });
   cam.target.set(player.x, 0.6, player.z);
@@ -1382,12 +1487,14 @@ function updateTurrets(dt) {
 }
 
 // ================= Охотники =================
-function hunterSpeed(kind) { return (CFG.hunter[kind] + player.got * CFG.hunter.perCell + (exitObj ? CFG.hunter.frenzy : 0)) * L.speed; }
+// прибавка за ячейки ограничена пятью, чтобы на больших уровнях Охотник не обгонял бегущего игрока
+function hunterSpeed(kind) { return (CFG.hunter[kind] + Math.min(player.got, 5) * CFG.hunter.perCell + (exitObj ? CFG.hunter.frenzy : 0)) * L.speed; }
 function hunterGoTo(h, x, z) { h.path = findPath(h.x, h.z, x, z); h.pi = 0; }
 let alertTimer = 0;
 function flashAlert(text) { $('alert').textContent = text; $('alert').style.opacity = 1; alertTimer = 1.6; }
 
 function hunterHear(h, x, z, source) {
+  if (h.stunT > 0) return;   // замкнутый Охотник ничего не слышит
   if (h.state === 'idle') h.timer = 0;
   if (h.state === 'chase' && h.sees) return;
   h.state = 'investigate';
@@ -1421,6 +1528,14 @@ function followPath(h, speed, dt) {
 }
 
 function updateHunter(h, dt) {
+  if (h.stunT > 0) {
+    // короткое замыкание от воды: стоит, искрит, виден и безопасен
+    h.stunT -= dt; h.sees = false; h.speedNow = 0;
+    if (Math.random() < dt * 12) FX.burst(h.x + rand(-0.3, 0.3), 1.3 + rand(0, 0.7), h.z + rand(-0.3, 0.3), 2, 0x9fd8ff);
+    animateHunter(h, dt, 0);
+    if (h.stunT <= 0) { h.state = 'search'; h.timer = 2; flashAlert('ОХОТНИК ОЧНУЛСЯ'); }
+    return;
+  }
   const dx = player.x - h.x, dz = player.z - h.z, dist = Math.hypot(dx, dz);
   h.sees = dist < (h.state === 'chase' ? CFG.hunter.keep : CFG.hunter.sense) && los(h.x, h.z, player.x, player.z);
   if (h.state !== 'idle' && h.sees && h.state !== 'chase') {
@@ -1491,9 +1606,15 @@ function animateHunter(h, dt, speed) {
   md.head.rotation.y = h.state === 'search' ? Math.sin(time * 3) * 0.7 : Math.sin(time * 0.8 + h.anim) * 0.2;
   md.g.position.set(h.x, Math.abs(Math.sin(h.anim)) * 0.05 * mv, h.z);
   md.g.rotation.y = h.rot;
-  // камуфляж: виден только вблизи
+  const stunned = h.stunT > 0;
+  if (stunned) {   // дёргается от замыкания, руки обвисли
+    md.head.rotation.z = Math.sin(time * 47) * 0.25;
+    md.armL.rotation.x = 0.3 + Math.sin(time * 31) * 0.15; md.armR.rotation.x = 0.3 + Math.sin(time * 37) * 0.15;
+    md.g.position.x += Math.sin(time * 53) * 0.02;
+  } else md.head.rotation.z = 0;
+  // камуфляж: виден только вблизи; замыкание его тоже срывает
   const d = Math.hypot(h.x - player.x, h.z - player.z);
-  const target = state === 'dead' && h === catcher ? 1 : clamp((5 - d) / 2.5, 0, 1);
+  const target = (state === 'dead' && h === catcher) || stunned ? 1 : clamp((5 - d) / 2.5, 0, 1);
   h.vis += (target - h.vis) * Math.min(1, dt * 6);
   const v = h.vis;
   for (const m of Object.values(md.mats)) {
@@ -1561,6 +1682,60 @@ function throwDecoy(target) {
   thrown.push(o);
   faceTo(player, a.x - player.x, a.z - player.z, 1, 99);
   sfx.throwIt();
+}
+// ---- водомёт: струя летит по прямой, вода замыкает Охотника ----
+const jetGeo = new THREE.CapsuleGeometry(0.06, 0.45, 4, 8).rotateX(Math.PI / 2);
+const jetMat = new THREE.MeshBasicMaterial({ color: 0x7cc8ff, transparent: true, opacity: 0.85 });
+function fireWater(target) {
+  if (player.water <= 0) { showMsg('НЕТ ВОДЫ', 1); return; }
+  const a = target || aimPoint();
+  let dx = a ? a.x - player.x : Math.sin(player.rot), dz = a ? a.z - player.z : Math.cos(player.rot);
+  const len = Math.hypot(dx, dz);
+  if (len < 0.01) { dx = Math.sin(player.rot); dz = Math.cos(player.rot); } else { dx /= len; dz /= len; }
+  player.water--;
+  faceTo(player, dx, dz, 1, 99);
+  const mesh = new THREE.Mesh(jetGeo, jetMat); level.add(mesh);
+  jets.push({ x: player.x + dx * 0.4, z: player.z + dz * 0.4, dx, dz, went: 0, mesh });
+  sfx.squirt();
+  emitRing(player.x, player.z, 3, 'water');
+}
+function splashAt(x, z) {
+  FX.burst(x, 0.8, z, 14, 0x5ab8ff);
+  emitRing(x, z, 4, 'water');
+  sfx.splash(x, z);
+}
+function stunHunter(h) {
+  h.stunT = CFG.stun; h.state = 'search'; h.path = [];
+  sfx.zap(h.x, h.z);
+  FX.burst(h.x, 1.6, h.z, 20, 0x9fd8ff);
+  flashAlert(`ОХОТНИК ЗАМКНУЛ НА ${String(CFG.stun).replace('.', ',')} С`);
+}
+function updateJets(dt) {
+  for (let i = jets.length - 1; i >= 0; i--) {
+    const j = jets[i];
+    let hit = false;
+    // шагаем мелко, чтобы струя не проскочила сквозь стену или Охотника
+    for (let s = CFG.waterSpeed * dt; s > 0 && !hit; s -= 0.25) {
+      const st = Math.min(0.25, s);
+      j.x += j.dx * st; j.z += j.dz * st; j.went += st;
+      const h = hunters.find(h => Math.hypot(h.x - j.x, h.z - j.z) < 0.65);
+      if (h) { if (h.stunT <= 0) stunHunter(h); splashAt(j.x, j.z); hit = true; }
+      else if (isWall(j.x, j.z) || j.went > CFG.waterRange) { splashAt(j.x - j.dx * 0.3, j.z - j.dz * 0.3); hit = true; }
+    }
+    j.mesh.position.set(j.x, 0.85, j.z);
+    j.mesh.rotation.y = Math.atan2(j.dx, j.dz);
+    if (Math.random() < 0.8) emitParticles(sparks, j.x, 0.8, j.z, 1, { speed: 0.4, up: 0.4, spread: 0.05, life: 0.4, size: 0.9, grav: 6, color: 0x7cc8ff });
+    if (hit) { level.remove(j.mesh); jets.splice(i, 1); }
+  }
+}
+// подкрепление: за подобранную ячейку где-то далеко просыпается ещё один Охотник
+function reinforce() {
+  const c = reinforcementCell();
+  if (!c) return;
+  const h = spawnHunter(c, 1.5);
+  FX.burst(h.x, 1.4, h.z, 16, 0xff4a2a);
+  sfx.growl(h.x, h.z, 0.45);
+  flashAlert(`ПРОСНУЛСЯ ЕЩЁ ОДИН ОХОТНИК · ИХ ${hunters.length}`);
 }
 function updateThrown(dt) {
   for (let i = thrown.length - 1; i >= 0; i--) {
@@ -1635,6 +1810,7 @@ function updatePlayer(dt) {
       emitRing(player.x, player.z, CFG.ring.chime, 'chime');
       if (player.got >= L.cellsN) openExit();
       else showMsg(`ЯЧЕЙКА ${player.got} / ${L.cellsN}`, 1.6);
+      if (L.reinforce && hunters.length < L.reinforce) reinforce();
     }
   }
   for (let i = pickups.length - 1; i >= 0; i--) {
@@ -1645,6 +1821,17 @@ function updatePlayer(dt) {
       player.decoys++; sfx.pick();
     }
   }
+  for (let i = guns.length - 1; i >= 0; i--) {
+    const p = guns[i];
+    p.gun.rotation.y += dt * 1.4; p.gun.position.y = 0.55 + Math.sin(time * 2 + i) * 0.08;
+    if (Math.random() < dt * 2) FX.mote(p.x, 0.3, p.z, 0x3aa7ff);
+    if (player.water < CFG.waterMax && Math.hypot(p.x - player.x, p.z - player.z) < 0.9) {
+      level.remove(p.g); guns.splice(i, 1); removePing(p);
+      player.water++; sfx.pick();
+      showMsg(player.water > 1 ? `ВОДОМЁТЫ: ${player.water}` : 'ВОДОМЁТ: ОДИН ЗАРЯД', 1.6);
+    }
+  }
+  playerModel.gun.visible = player.water > 0;
   if (exitObj) {
     exitObj.ring.position.y = 0.4 + Math.sin(time * 2) * 0.3;
     if (Math.random() < dt * 8) FX.mote(exitObj.x, 0.2, exitObj.z, 0xffb347);
@@ -1771,6 +1958,9 @@ function updateHUD(dt) {
   $('hSonarFill').style.height = (player.charging ? player.charge * 100 : 100 * (1 - player.cooldown / CFG.sonarCooldown)) + '%';
   $('cSonar').classList.toggle('off', player.cooldown > 0 && !player.charging);
   $('hDecoys').textContent = player.decoys;
+  $('hWater').textContent = player.water;
+  $('cWater').classList.toggle('off', player.water <= 0);
+  $('cWater').hidden = !L.pistols && player.water <= 0;
   $('cDecoy').classList.toggle('off', player.decoys <= 0);
   $('vignette').style.opacity = Math.max(0, (player.panic - 30) / 70);
   msgTimer -= dt; if (msgTimer <= 0) $('msg').style.opacity = 0;
@@ -1884,7 +2074,8 @@ function renderLevels() {
     const st = rec ? rec.stars : 0;
     b.innerHTML = `${locked ? '<div class="lock">ЗАКРЫТО</div>' : ''}<div class="n">${String(i + 1).padStart(2, '0')}</div>
       <div class="nm">${lv.name}</div><div class="st">${'★'.repeat(st)}<span class="e">${'★'.repeat(3 - st)}</span></div>
-      <div class="bt">${rec ? 'лучшее ' + fmt(rec.time) : `${lv.cellsN} ячеек · ${lv.hunters} охот.`}</div>`;
+      <div class="bt">${rec ? 'лучшее ' + fmt(rec.time) : `${lv.cellsN} ячеек · ${lv.hunters} охот.`}</div>
+      <div class="tags">${lv.pistols ? '<span class="tg w">вода</span>' : ''}${lv.reinforce ? '<span class="tg r">+охотники</span>' : ''}${lv.turrets ? '<span class="tg">турели</span>' : ''}</div>`;
     if (!locked) b.onclick = () => { sfx.click(); startLevel(i); };
     gEl.appendChild(b);
   });
@@ -1903,7 +2094,7 @@ function startLevel(i) {
   $('hLevel').textContent = `${String(i + 1).padStart(2, '0')} · ${L.name}`;
   $('iNum').textContent = `Уровень ${String(i + 1).padStart(2, '0')}`;
   $('iName').textContent = L.name;
-  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')) : `Собери ${L.cellsN} энергоячеек.`;
+  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')).replace('{water}', bindLabel('water')) : `Собери ${L.cellsN} энергоячеек.`;
   touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
   $('intro').style.opacity = 1; introT = settings.hints ? 6 : 3;
   resetPerf();
@@ -2041,6 +2232,7 @@ function pressCode(code) {
   for (const a of actionsOf(code)) {
     if (a === 'sonar') pressSonar();
     else if (a === 'decoy') throwDecoy();
+    else if (a === 'water') fireWater();
     else if (a === 'camLeft') cam.azT += Math.PI / 2;
     else if (a === 'camRight') cam.azT -= Math.PI / 2;
   }
@@ -2177,28 +2369,32 @@ cSonar.addEventListener('pointerdown', (e) => {
 const sonarUp = () => { if (!cSonar.classList.contains('held')) return; cSonar.classList.remove('held'); if (state === 'playing') releaseSonar(); };
 cSonar.addEventListener('pointerup', sonarUp);
 cSonar.addEventListener('pointercancel', sonarUp);
-cDecoy.addEventListener('pointerdown', (e) => {
-  if (!touchMode || state !== 'playing') return;
-  capture(cDecoy, e); cDecoy.classList.add('held');
-  aim = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false };
-});
-cDecoy.addEventListener('pointermove', (e) => {
-  if (!aim || e.pointerId !== aim.id) return;
-  if (Math.hypot(e.clientX - aim.sx, e.clientY - aim.sy) > 24) aim.moved = true;
-  setAimFrom(e);
-});
-function decoyUp(e, cancel) {
-  if (!aim || e.pointerId !== aim.id) return;
-  cDecoy.classList.remove('held');
-  if (!cancel && state === 'playing') {
-    // перетащил — бросок в точку под пальцем; просто нажал — бросок на 7 м вперёд
-    if (aim.moved) throwDecoy();
-    else throwDecoy({ x: player.x + Math.sin(player.rot) * 7, z: player.z + Math.cos(player.rot) * 7, d: 7 });
-  }
-  aim = null;
+// карточки «Приманка» и «Водомёт»: тяни пальцем — прицел в точку под пальцем, просто нажми — вперёд
+function aimCard(card, use) {
+  card.addEventListener('pointerdown', (e) => {
+    if (!touchMode || state !== 'playing') return;
+    capture(card, e); card.classList.add('held');
+    aim = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, card };
+  });
+  card.addEventListener('pointermove', (e) => {
+    if (!aim || e.pointerId !== aim.id) return;
+    if (Math.hypot(e.clientX - aim.sx, e.clientY - aim.sy) > 24) aim.moved = true;
+    setAimFrom(e);
+  });
+  const up = (e, cancel) => {
+    if (!aim || e.pointerId !== aim.id) return;
+    card.classList.remove('held');
+    if (!cancel && state === 'playing') {
+      if (aim.moved) use();
+      else use({ x: player.x + Math.sin(player.rot) * 7, z: player.z + Math.cos(player.rot) * 7, d: 7 });
+    }
+    aim = null;
+  };
+  card.addEventListener('pointerup', (e) => up(e, false));
+  card.addEventListener('pointercancel', (e) => up(e, true));
 }
-cDecoy.addEventListener('pointerup', (e) => decoyUp(e, false));
-cDecoy.addEventListener('pointercancel', (e) => decoyUp(e, true));
+aimCard(cDecoy, throwDecoy);
+aimCard($('cWater'), fireWater);
 $('btnRotL').onclick = () => { cam.azT += Math.PI / 2; };
 $('btnRotR').onclick = () => { cam.azT -= Math.PI / 2; };
 const fsBtn = $('btnFull');
@@ -2252,9 +2448,10 @@ function tick(dt) {
     for (const h of hunters) updateHunter(h, dt);
     updateTurrets(dt);
     updateThrown(dt);
+    updateJets(dt);
     updateHUD(dt);
     introT -= dt; $('intro').style.opacity = clamp(introT, 0, 1);
-    const showAim = player.decoys > 0 && (touchMode ? !!(aim && aim.moved) : true);
+    const showAim = touchMode ? !!(aim && aim.moved) : player.decoys > 0;
     const a = showAim ? aimPoint() : null;
     reticle.visible = !!a;
     if (a) reticle.position.set(a.x, solidHeight(a.x, a.z) + 0.05, a.z);
@@ -2302,7 +2499,7 @@ resetPlayer();
 applyQuality();
 fillBindLabels();
 frame();
-window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+window.__echo = { player, hunters, cells, turrets, guns, jets, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
 </body>
 </html>
