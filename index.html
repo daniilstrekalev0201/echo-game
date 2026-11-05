@@ -64,6 +64,9 @@
 
   #alert { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); padding: 6px 16px; border-radius: 6px;
     background: var(--red); color: #fff; font-size: 17px; opacity: 0; transition: opacity 0.25s; white-space: nowrap; }
+  #prompt { position: absolute; left: 0; right: 0; bottom: calc(170px + env(safe-area-inset-bottom, 0px)); text-align: center; font-size: 18px;
+    font-weight: 600; color: var(--ink); text-shadow: 0 1px 0 #fff; opacity: 0; transition: opacity 0.2s; pointer-events: none; padding: 0 16px; }
+  body.darkLevel #prompt { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7); }
   #msg { position: absolute; top: 24%; width: 100%; text-align: center; font-size: 30px; font-weight: 600; color: var(--ink);
     text-shadow: 0 2px 0 #fff; opacity: 0; transition: opacity 0.4s; padding: 0 16px; }
   #intro { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); text-align: center; background: var(--panel);
@@ -115,6 +118,23 @@
   .lvl .st { font-size: 20px; color: var(--orange); margin-top: 8px; letter-spacing: 0.1em; }
   .lvl .st .e { color: var(--line); }
   .lvl .bt { font-size: 13px; color: var(--dim); }
+  #skins { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; align-items: flex-end; }
+  #skins .panel { padding: 18px 20px; margin: auto auto 0; }
+  .skinStars { font-size: 20px; color: var(--orange); letter-spacing: 0.04em; margin-left: 8px; }
+  .skinGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .skin { border: 2px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 6px; cursor: pointer; text-align: center;
+    font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: 0.04em; color: var(--ink); }
+  .skin:hover { border-color: var(--orange); }
+  .skin.on { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange); }
+  .skin.locked { cursor: not-allowed; opacity: 0.55; }
+  .skin.locked:hover { border-color: var(--line); }
+  .skin .sw { position: relative; width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 6px; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.12); }
+  .skin .sw i { position: absolute; left: -2px; right: -2px; top: 46%; height: 9px; }
+  .skin .req { display: block; font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .dbg { text-align: left; margin-top: 20px; padding-top: 6px; border-top: 2px dashed var(--line); }
+  .dbg[hidden] { display: none; }
+  .dbgBtns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+  .dbgBtns .b { font-size: 15px; padding: 8px 12px; text-align: center; flex: 1 1 90px; }
   #lvlTitle { user-select: none; }
   .adminBadge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ink);
     color: #fff; font-size: 14px; letter-spacing: 0.08em; }
@@ -129,6 +149,7 @@
     border-radius: 4px; background: #ecece8; color: #77776f; }
   .lvl .tg.w { background: #e1f0fc; color: #2a7fc4; }
   .lvl .tg.r { background: #fbe3e4; color: #c22a35; }
+  .lvl .tg.d { background: #3a3a3e; color: #f2f2ef; }
   .lvl.locked { cursor: not-allowed; background: #f1f1ee; }
   .lvl.locked .n, .lvl.locked .nm { color: #b9b9b3; }
   .lvl.locked:hover { border-color: var(--line); }
@@ -248,6 +269,7 @@
   <div id="pings"></div>
   <div id="alert" class="cond"></div>
   <div id="msg" class="cond"></div>
+  <div id="prompt" class="cond"></div>
   <div id="intro"><div class="n cond" id="iNum"></div><div class="t cond" id="iName"></div><div class="d" id="iText"></div></div>
   <div id="hPlayer">
     <div class="pname cond">ЭХО-01</div>
@@ -277,6 +299,7 @@
     <div class="sub">Охотник невидим и слеп. Но слышит каждый твой шаг.</div>
     <div class="menuCol">
       <button class="b primary" data-go="levels">Играть</button>
+      <button class="b" data-go="skins">Робот</button>
       <button class="b" data-go="howto">Как играть</button>
       <button class="b" data-settings>Настройки</button>
       <button class="b touchOnly" id="btnFull">На весь экран</button>
@@ -298,6 +321,15 @@
   </div>
 </div>
 
+<div id="skins" class="overlay hidden">
+  <div class="panel">
+    <h2>Робот <span class="skinStars" id="skinStars"></span></h2>
+    <div class="sub" style="margin:0 0 12px">Раскраски открываются звёздами за уровни. Камера показывает ЭХО-01 вживую.</div>
+    <div class="skinGrid" id="skinGrid"></div>
+    <button class="b back" data-go="mainMenu">← Назад</button>
+  </div>
+</div>
+
 <div id="howto" class="overlay hidden">
   <div class="panel rules">
     <h2>Как играть</h2>
@@ -307,6 +339,10 @@
     <p><b>Приманка</b> (<span data-bind="decoy"></span>) летит в точку под курсором, даже через стены. Охотник побежит на звук.</p>
     <p><b>Водомёт</b> (<span data-bind="water"></span>) появляется с 3-го уровня. В нём один заряд: струя летит в сторону курсора и, попав в Охотника, замыкает его на 4,5 секунды. Пока он искрит, он виден и не опасен. Брызги шумят — их слышат остальные. Можно нести до двух водомётов.</p>
     <p><b>Подкрепление</b> с 6-го уровня: за каждую подобранную ячейку где-то далеко просыпается ещё один Охотник.</p>
+    <p><b>Шкафы</b> с 2-го уровня: присядь (<span data-bind="crouch"></span>) рядом со шкафом — спрячешься. Внутри тебя не видно и Охотник пройдёт мимо. Но страх растёт быстрее, и если сердце застучит рядом с Охотником, он заглянет в шкаф. Двинься — и вылезешь.</p>
+    <p><b>Двери</b> с 5-го уровня открываются сами, когда подходишь, и закрываются за спиной. Закрытая дверь закрывает обзор, а Охотнику приходится её выламывать — это громко и занимает пару секунд.</p>
+    <p><b>Блэкаут</b> с 8-го уровня: иногда свет мигает и гаснет секунд на двадцать. Тогда виден только круг света вокруг робота, а сонар ненадолго освещает стены.</p>
+    <p><b>Робот</b> в главном меню: раскраски для ЭХО-01 открываются звёздами за уровни.</p>
     <p><b>Страх слышен.</b> Когда Охотник рядом, сердце колотится, и выше 70% каждый удар рождает красный круг. Присядь (<span data-bind="crouch"></span>) и замри, чтобы успокоиться.</p>
     <p><b>Бег</b> громкий, <b>ходьба</b> тихая, <b>присед</b> беззвучный.</p>
     <p class="touchOnly"><b>На телефоне:</b> тяни круглый стик внизу экрана — идти, до края — бег. Рядом с ним кнопка «Присесть», нажатием включается и выключается. Удерживай карточку «Сонар». Карточку «Приманка» тяни пальцем в нужную точку или просто нажми — бросок вперёд. Где стоит стик и какого он размера, меняется в настройках.</p>
@@ -369,6 +405,16 @@
       <button class="b" data-settings>Настройки</button>
       <button class="b" id="btnMenu">В меню</button>
     </div>
+    <div id="dbgPanel" class="dbg" hidden>
+      <h3>Отладка · админ</h3>
+      <div class="opt"><span>Бессмертие</span><button class="tog" id="dbgGod"></button></div>
+      <div class="opt"><span>Охотники видны всегда</span><button class="tog" id="dbgSee"></button></div>
+      <div class="opt"><span>Ускорение ×2</span><button class="tog" id="dbgFast"></button></div>
+      <div class="dbgBtns">
+        <button class="b" id="dbgCells">Все ячейки</button><button class="b" id="dbgWin">Победа</button><button class="b" id="dbgDark">Блэкаут</button>
+      </div>
+      <div class="optNote">С отладкой звёзды за уровень не записываются.</div>
+    </div>
   </div>
 </div>
 
@@ -427,30 +473,33 @@ const LEVELS = [
   { name: 'Склад', cells: 7, cellsN: 3, hunters: 1, turrets: 0, decoys: 2, pistols: 0, reinforce: 0, speed: 0.85, par: 110,
     intro: 'Охотник невидим — смотри на тёмные круги его шагов. Собери 3 энергоячейки и доберись до выхода.' },
   { name: 'Цех', cells: 9, cellsN: 4, hunters: 1, turrets: 0, decoys: 4, pistols: 0, reinforce: 0, speed: 1.0, par: 170,
-    intro: 'Приманки ({decoy}) летят через стены. Охотник побежит на звук, а ты — в другую сторону.',
-    introTouch: 'Тяни карточку «Приманка» в нужную точку — она летит через стены. Охотник побежит на звук, а ты — в другую сторону.' },
+    intro: 'Приманки ({decoy}) летят через стены. А у стен стоят шкафы: присядь ({crouch}) рядом — и спрячешься внутри.',
+    introTouch: 'Тяни карточку «Приманка» — она летит через стены. А у стен стоят шкафы: нажми «Присесть» рядом — и спрячешься внутри.' },
   { name: 'Арсенал', cells: 9, cellsN: 4, hunters: 2, turrets: 0, decoys: 4, pistols: 2, reinforce: 0, speed: 1.0, par: 200,
     intro: 'Охотников двое. Здесь лежат водомёты: один заряд воды ({water}) замыкает Охотника на 4,5 секунды — он ведь робот.',
     introTouch: 'Охотников двое. Здесь лежат водомёты: тяни карточку «Водомёт» в сторону Охотника — вода замкнёт его на 4,5 секунды.' },
   { name: 'Полигон', cells: 11, cellsN: 5, hunters: 2, turrets: 3, decoys: 5, pistols: 2, reinforce: 0, speed: 1.05, par: 260,
     intro: 'Турели на стенах слепы, но, услышав звук, поднимают тревогу — и все Охотники бегут к источнику.' },
   { name: 'Ядро', cells: 11, cellsN: 6, hunters: 3, turrets: 4, decoys: 6, pistols: 3, reinforce: 0, speed: 1.1, par: 320,
-    intro: 'Три Охотника и турели. Береги воду для самых опасных моментов.' },
+    intro: 'Новое: двери. Они открываются сами и закрываются за тобой, а Охотнику приходится их выламывать — это шумно.' },
   { name: 'Резервуар', cells: 11, cellsN: 5, hunters: 1, turrets: 1, decoys: 5, pistols: 3, reinforce: 4, speed: 1.0, par: 290,
     intro: 'Новое: каждая подобранная ячейка будит ещё одного Охотника. Чем больше собрал — тем теснее в лабиринте.' },
   { name: 'Литейная', cells: 13, cellsN: 6, hunters: 2, turrets: 3, decoys: 6, pistols: 3, reinforce: 5, speed: 1.05, par: 380,
     intro: 'Большой цех и подкрепление. Планируй маршрут так, чтобы последние ячейки были ближе к выходу.' },
   { name: 'Глубина', cells: 13, cellsN: 6, hunters: 2, turrets: 4, decoys: 6, pistols: 2, reinforce: 5, speed: 1.05, par: 400,
-    intro: 'Темно, мало воды и много турелей. Слушай шаги.' },
+    intro: 'Новое: блэкаут. Время от времени гаснет свет — тогда стены видно, только пока их освещает сонар.' },
   { name: 'Узел', cells: 13, cellsN: 7, hunters: 3, turrets: 4, decoys: 7, pistols: 3, reinforce: 6, speed: 1.1, par: 450,
     intro: 'Три Охотника сразу и ещё по одному за ячейку. Приманки и вода — твои лучшие друзья.' },
   { name: 'Сердце', cells: 15, cellsN: 8, hunters: 3, turrets: 5, decoys: 8, pistols: 4, reinforce: 7, speed: 1.1, par: 560,
     intro: 'Последний уровень. Самый большой лабиринт, восемь ячеек и целая стая. Удачи, ЭХО-01.' },
 ];
+// шкафы, двери и блэкаут по уровням: [шкафов, дверей, блэкаут]
+const EXTRAS = [[0, 0, 0], [2, 0, 0], [2, 0, 0], [3, 0, 0], [3, 4, 0], [3, 4, 0], [4, 6, 0], [4, 6, 1], [4, 8, 1], [5, 8, 1]];
+EXTRAS.forEach(([lockers, doors, blackout], i) => Object.assign(LEVELS[i], { lockers, doors, blackout: !!blackout }));
 const T = CFG.tile;
 const SPEED = CFG.ringSpeed;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const RING_COL = { sonar: 0xf28a1e, decoy: 0xffa424, step: 0x7b7b74, chime: 0xe8b51a, heart: 0xe2343f, hunter: 0x26262a, alarm: 0xe2343f, water: 0x3aa7ff };
+const RING_COL = { sonar: 0xf28a1e, decoy: 0xffa424, step: 0x7b7b74, chime: 0xe8b51a, heart: 0xe2343f, hunter: 0x26262a, alarm: 0xe2343f, water: 0x3aa7ff, door: 0x9a8670 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
 const $ = (id) => document.getElementById(id);
@@ -575,6 +624,56 @@ function applyTheme(t) {
   MAT.lampWarm.emissiveIntensity = t.lampGlow || 0.8;
   RING_COL.hunter = t.hunterRing || 0x26262a;
   document.body.classList.toggle('darkLevel', !!t.dark);
+  renderer.toneMappingExposure = 1;
+}
+
+// ---- блэкаут: свет гаснет, видно только фонарик робота и то, что осветил сонар ----
+// Точечные источники созданы заранее и обычно выключены: меняется только яркость, шейдеры не пересобираются.
+const playerLight = new THREE.PointLight(0xfff1dd, 0, 6.5, 1.4);
+const sonarLights = [0, 1].map(() => ({ l: new THREE.PointLight(0xffc27a, 0, 20, 1.1), t: 0, dur: 1, r: 1 }));
+for (const l of [playerLight, ...sonarLights.map(s => s.l)]) { l.layers.enableAll(); scene.add(l); }
+const blackout = { k: 0, phase: 'off', t: Infinity };
+const _bg = new THREE.Color(), _night = new THREE.Color(0x050507);
+function resetBlackout(enabled) {
+  blackout.k = 0; blackout.phase = 'off'; blackout.t = enabled ? 30 : Infinity;
+  for (const s of sonarLights) { s.t = 0; s.l.intensity = 0; }
+  playerLight.intensity = 0;
+}
+function startBlackout() { blackout.phase = 'flicker'; blackout.t = 1.6; showMsg('СВЕТ МИГАЕТ…', 1.6); sfx.power(false); }
+function updateBlackout(dt) {
+  if (blackout.phase === 'off' && blackout.k <= 0.001 && !isFinite(blackout.t)) return;
+  blackout.t -= dt;
+  if (blackout.phase === 'off' && blackout.t <= 0) startBlackout();
+  else if (blackout.phase === 'flicker' && blackout.t <= 0) {
+    blackout.phase = 'dark'; blackout.t = rand(16, 22);
+    showMsg('БЛЭКАУТ — СТЕНЫ ВИДНО ТОЛЬКО В СВЕТЕ СОНАРА', 3);
+  } else if (blackout.phase === 'dark' && blackout.t <= 0) {
+    blackout.phase = 'off'; blackout.t = L.blackout ? rand(45, 65) : Infinity;
+    showMsg('СВЕТ ВЕРНУЛСЯ', 1.6); sfx.power(true);
+  }
+  const target = blackout.phase === 'dark' ? 1 : blackout.phase === 'flicker' ? (Math.sin(time * 37) > 0.2 ? 0.85 : 0.1) : 0;
+  blackout.k += (target - blackout.k) * Math.min(1, dt * (blackout.phase === 'flicker' ? 30 : 2.5));
+  const k = blackout.k, t = theme;
+  hemi.intensity = t.hemi * (1 - k) + 0.012 * k;
+  sun.intensity = t.sun * (1 - k) + 0.02 * k;
+  renderer.toneMappingExposure = 1 - 0.5 * k;
+  _bg.set(t.bg).lerp(_night, k); renderer.setClearColor(_bg); scene.fog.color.copy(_bg);
+  MAT.lampWarm.emissiveIntensity = (t.lampGlow || 0.8) * (1 + 1.5 * k);
+  playerLight.intensity = 9 * k; playerLight.position.set(player.x, 2.6, player.z);
+  document.body.classList.toggle('darkLevel', !!t.dark || k > 0.5);
+  for (const s of sonarLights) {
+    if (s.t <= 0) { s.l.intensity = 0; continue; }
+    s.t -= dt;
+    const age = 1 - s.t / s.dur;
+    s.l.distance = 2 + s.r * Math.min(1, age * 2.2);
+    s.l.intensity = 90 * k * Math.max(0, s.t / s.dur);
+  }
+}
+// во время блэкаута сонар на пару секунд освещает всё вокруг
+function sonarFlash(x, z, r) {
+  if (blackout.k < 0.05) return;
+  const s = sonarLights.reduce((a, b) => (a.t < b.t ? a : b));
+  s.l.position.set(x, 2.2, z); s.t = s.dur = 2.4; s.r = r * 1.3;
 }
 const GEO = {
   cube: new RoundedBoxGeometry(0.98, 0.98, 0.98, 2, 0.07),
@@ -863,6 +962,23 @@ const sfx = {
     sTone(p, { type: 'square', f0: 900, f1: 600, vol: 0.06, dec: 0.4, delay: 0.05 });
   },
   hunterStep(x, z, v) { if (A.ctx) sNoise(panner(x, 0, z), { freq: 170, vol: v, dec: 0.16 }); },
+  creak(x, z, v) {
+    if (!A.ctx) return;
+    const p = panner(x, 1, z);
+    sTone(p, { type: 'sawtooth', f0: 210, f1: 140, vol: 0.05 * v, a: 0.05, dec: 0.35 });
+    sNoise(p, { type: 'bandpass', freq: 900, q: 3, vol: 0.12 * v, a: 0.02, dec: 0.3 });
+  },
+  power(on) {
+    if (!A.ctx) return;
+    sTone(A.master, { type: 'sawtooth', f0: on ? 60 : 240, f1: on ? 240 : 40, vol: 0.12, a: 0.05, dec: on ? 0.6 : 1.1 });
+    sNoise(A.master, { type: 'highpass', freq: 2500, vol: 0.08, a: 0.01, dec: 0.2 });
+  },
+  bang(x, z) {
+    if (!A.ctx) return;
+    const p = panner(x, 1, z);
+    sNoise(p, { freq: 380, vol: 0.8, a: 0.003, dec: 0.35 });
+    sTone(p, { f0: 80, f1: 45, vol: 0.4, dec: 0.4 });
+  },
   squirt() {
     if (!A.ctx) return;
     sNoise(A.master, { type: 'bandpass', freq: 2600, q: 1.5, vol: 0.18, a: 0.01, dec: 0.35 });
@@ -944,27 +1060,39 @@ function solidHeight(x, z) {
   const v = grid[ty][tx];
   return v === 0 ? 0 : v === 2 ? 1.4 : hgt[ty][tx];
 }
+// Кроме стен по клеткам есть мелкие препятствия: шкафы и закрытые двери (прямоугольники в метрах)
+const obstacles = [];
+const obstacleOn = (o) => !o.door || !o.door.isOpen;
+function obstacleAt(x, z, r = 0) {
+  return obstacles.find(o => obstacleOn(o) && x + r > o.x0 && x - r < o.x1 && z + r > o.z0 && z - r < o.z1);
+}
 function boxHits(x, z, r) {
   for (let ty = Math.floor((z - r) / T); ty <= Math.floor((z + r) / T); ty++)
     for (let tx = Math.floor((x - r) / T); tx <= Math.floor((x + r) / T); tx++)
-      if (solid(tx, ty)) return true;
-  return false;
+      if (solid(tx, ty)) return 'tile';
+  return obstacleAt(x, z, r) ? 'obs' : false;
 }
 function moveCol(o, dx, dz, r) {
   if (dx) {
     let nx = o.x + dx;
-    if (boxHits(nx, o.z, r)) nx = dx > 0 ? Math.floor((nx + r) / T) * T - r - 0.001 : (Math.floor((nx - r) / T) + 1) * T + r + 0.001;
+    const hit = boxHits(nx, o.z, r);
+    if (hit === 'tile') nx = dx > 0 ? Math.floor((nx + r) / T) * T - r - 0.001 : (Math.floor((nx - r) / T) + 1) * T + r + 0.001;
+    if (hit === 'obs' || (hit === 'tile' && obstacleAt(nx, o.z, r))) nx = o.x;
     o.x = nx;
   }
   if (dz) {
     let nz = o.z + dz;
-    if (boxHits(o.x, nz, r)) nz = dz > 0 ? Math.floor((nz + r) / T) * T - r - 0.001 : (Math.floor((nz - r) / T) + 1) * T + r + 0.001;
+    const hit = boxHits(o.x, nz, r);
+    if (hit === 'tile') nz = dz > 0 ? Math.floor((nz + r) / T) * T - r - 0.001 : (Math.floor((nz - r) / T) + 1) * T + r + 0.001;
+    if (hit === 'obs' || (hit === 'tile' && obstacleAt(o.x, nz, r))) nz = o.z;
     o.z = nz;
   }
 }
+// закрытая дверь закрывает обзор так же, как стена
+const blockedAt = (x, z) => isWall(x, z) || obstacles.some(o => o.door && !o.door.isOpen && x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1);
 function los(ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, n = Math.ceil(Math.hypot(dx, dz) / 0.25);
-  for (let i = 1; i < n; i++) if (isWall(ax + dx * i / n, az + dz * i / n)) return false;
+  for (let i = 1; i < n; i++) if (blockedAt(ax + dx * i / n, az + dz * i / n)) return false;
   return true;
 }
 function tileOf(x, z) { return [clamp(Math.floor(x / T), 0, W - 1), clamp(Math.floor(z / T), 0, W - 1)]; }
@@ -1032,19 +1160,40 @@ function buildWaterGun() {
   const cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), MAT.orange), 0, 0.36, -0.08);
   return shadowAll(g);
 }
+// у робота свои материалы — их перекрашивают скины, не задевая ящики и турели
+const PM = { body: MAT.white.clone(), helm: MAT.white.clone(), band: MAT.orange.clone(), visor: MAT.visor.clone(), tip: MAT.glow.clone() };
+// скины открываются суммой звёзд за все уровни (максимум 30)
+const SKINS = [
+  { id: 'std', name: 'Стандарт', stars: 0, helm: 0xf4f4f1, band: 0xf28a1e, visor: 0x1e1e22, tip: 0xf28a1e },
+  { id: 'sea', name: 'Морской', stars: 3, helm: 0xf1f5f8, band: 0x2f8fe0, visor: 0x1e2430, tip: 0x3aa7ff },
+  { id: 'mint', name: 'Мятный', stars: 6, helm: 0xeef6f1, band: 0x2fbf8f, visor: 0x1d2622, tip: 0x2fbf8f },
+  { id: 'lava', name: 'Лава', stars: 10, helm: 0x3a3a3e, band: 0xe2343f, visor: 0xff5a1f, visorGlow: true, tip: 0xff3a1a, trail: 0xff5a2a },
+  { id: 'neon', name: 'Неон', stars: 15, helm: 0x2a2a30, band: 0x39ff9e, bandGlow: true, visor: 0x101014, tip: 0x39ff9e, trail: 0x39ff9e },
+  { id: 'gold', name: 'Золото', stars: 20, helm: 0xd9b45a, metal: true, band: 0x3a3a3a, visor: 0x1e1e22, tip: 0xffd45a, trail: 0xffd45a },
+  { id: 'ghost', name: 'Призрак', stars: 25, helm: 0xffffff, band: 0xb9a8ff, bandGlow: true, visor: 0x8a7cff, visorGlow: true, tip: 0xb9a8ff, trail: 0xb9a8ff },
+  { id: 'legend', name: 'Легенда', stars: 30, helm: 0x1e1e22, band: 0xf28a1e, bandGlow: true, visor: 0xf28a1e, visorGlow: true, tip: 0xffb347, trail: 0xf28a1e },
+];
+let skin = SKINS[0];
+function applySkin(s) {
+  skin = s;
+  for (const m of [PM.helm, PM.body]) { m.color.set(s.helm); m.metalness = s.metal ? 0.85 : 0; m.roughness = s.metal ? 0.25 : 0.3; }
+  PM.band.color.set(s.band); PM.band.emissive.set(s.bandGlow ? s.band : 0x000000); PM.band.emissiveIntensity = 0.9;
+  PM.visor.color.set(s.visor); PM.visor.emissive.set(s.visorGlow ? s.visor : 0x000000); PM.visor.emissiveIntensity = 1.2;
+  PM.tip.color.set(s.tip); PM.tip.emissive.set(s.tip);
+}
 function buildPlayer() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const torso = rbox(0.46, 0.42, 0.34, 0.1, MAT.white); torso.position.y = 0.58; body.add(torso);
+  const torso = rbox(0.46, 0.42, 0.34, 0.1, PM.body); torso.position.y = 0.58; body.add(torso);
   const belt = rbox(0.48, 0.08, 0.36, 0.03, MAT.grey); belt.position.y = 0.4; body.add(belt);
   const pack = rbox(0.3, 0.3, 0.14, 0.05, MAT.grey); pack.position.set(0, 0.6, -0.22); body.add(pack);
   const head = new THREE.Group(); head.position.y = 1.02; body.add(head);
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 20), MAT.white); head.add(helm);
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.13, 32, 1, true), MAT.orange); band.position.y = -0.02; head.add(band);
-  const visor = rbox(0.34, 0.1, 0.1, 0.04, MAT.visor); visor.position.set(0, -0.02, 0.26); head.add(visor);
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 20), PM.helm); head.add(helm);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.13, 32, 1, true), PM.band); band.position.y = -0.02; head.add(band);
+  const visor = rbox(0.34, 0.1, 0.1, 0.04, PM.visor); visor.position.set(0, -0.02, 0.26); head.add(visor);
   // антенна покачивается при ходьбе
   const antenna = new THREE.Group(); antenna.position.set(0.12, 0.24, -0.04); antenna.rotation.z = -0.25; head.add(antenna);
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.24, 6), MAT.dark); rod.position.y = 0.12; antenna.add(rod);
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), MAT.glow); tip.position.y = 0.26; antenna.add(tip);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), PM.tip); tip.position.y = 0.26; antenna.add(tip);
   const limb = (x, y, len, r, mat) => {
     const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p);
     const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat); m.position.y = -len / 2 - r * 0.5; p.add(m);
@@ -1158,12 +1307,132 @@ function buildDecoy(scale = 1) {
   return shadowAll(g);
 }
 
+// ---- шкафы-укрытия и двери ----
+const HIDE_MAT = {
+  locker: std(0x6f7a82, { roughness: 0.4, metalness: 0.45, envMapIntensity: 0.9 }),
+  lockerDoor: std(0x8a959c, { roughness: 0.38, metalness: 0.45, envMapIntensity: 0.9 }),
+  door: std(0xd9d2c2, { roughness: 0.6 }),
+  glass: std(0x2a3036, { roughness: 0.1, metalness: 0.3, envMapIntensity: 1.3 }),
+};
+function buildLocker() {
+  const g = new THREE.Group();
+  const body = rbox(0.9, 1.9, 0.6, 0.05, HIDE_MAT.locker); body.position.y = 0.95; g.add(body);
+  const pivot = new THREE.Group(); pivot.position.set(-0.43, 0.95, 0.31); g.add(pivot);
+  const door = rbox(0.84, 1.8, 0.05, 0.03, HIDE_MAT.lockerDoor); door.position.x = 0.42; pivot.add(door);
+  for (let i = 0; i < 4; i++) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.02), MAT.dark); v.position.set(0.42, 0.62 - i * 0.07, 0.03); pivot.add(v); }
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.04), MAT.orange); handle.position.set(0.76, 0, 0.04); pivot.add(handle);
+  return { g: shadowAll(g), pivot };
+}
+function buildDoor() {
+  const g = new THREE.Group(), pivot = new THREE.Group(); pivot.position.x = -0.98; g.add(pivot);
+  const panel = rbox(1.94, 1.9, 0.1, 0.04, HIDE_MAT.door); panel.position.set(0.97, 0.95, 0); pivot.add(panel);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.14, 0.11), MAT.orange); band.position.set(0.97, 0.55, 0); pivot.add(band);
+  const win = rbox(0.9, 0.35, 0.115, 0.03, HIDE_MAT.glass); win.position.set(0.97, 1.4, 0); pivot.add(win);
+  return { g: shadowAll(g), pivot };
+}
+// шкафы ставим к стенам, двери — поперёк прямых коридоров; ни то ни другое не перекрывает проход
+function buildHideouts() {
+  const near = (a, b, d) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) < d;
+  const start = { x: 1, y: 1 }, used = [];
+  // клетки, где уже лежат предметы или стоят Охотники, не занимаем
+  const busy = [...cells, ...guns, ...pickups, ...hunters].map(o => { const [x, y] = tileOf(o.x, o.z); return { x, y }; });
+  const pick = (cands, n, gap) => {
+    const out = [];
+    for (const c of cands.sort(() => Math.random() - 0.5)) {
+      if (out.length >= n) break;
+      if (near(c, start, 3) || used.some(u => near(u, c, gap)) || busy.some(b => b.x === c.x && b.y === c.y)) continue;
+      out.push(c); used.push(c);
+    }
+    return out;
+  };
+  const doorCands = [];
+  for (let y = 1; y < W - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (grid[y][x] !== 0) continue;
+    const wl = grid[y][x - 1] === 1, wr = grid[y][x + 1] === 1, wu = grid[y - 1][x] === 1, wd = grid[y + 1][x] === 1;
+    if (wl && wr && !grid[y - 1][x] && !grid[y + 1][x]) doorCands.push({ x, y, along: 'z' });
+    else if (wu && wd && !grid[y][x - 1] && !grid[y][x + 1]) doorCands.push({ x, y, along: 'x' });
+  }
+  for (const c of pick(doorCands, L.doors, 4)) {
+    const m = buildDoor(), cx = (c.x + 0.5) * T, cz = (c.y + 0.5) * T;
+    m.g.position.set(cx, 0, cz);
+    if (c.along === 'x') m.g.rotation.y = Math.PI / 2;
+    level.add(m.g);
+    const d = { x: cx, z: cz, isOpen: false, a: 0, closeT: 0, pivot: m.pivot };
+    obstacles.push(c.along === 'z'
+      ? { x0: c.x * T, x1: (c.x + 1) * T, z0: cz - 0.12, z1: cz + 0.12, door: d }
+      : { x0: cx - 0.12, x1: cx + 0.12, z0: c.y * T, z1: (c.y + 1) * T, door: d });
+    doors.push(d);
+  }
+  const lockerCands = [];
+  for (let y = 1; y < W - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (grid[y][x] !== 0) continue;
+    for (const [dx, dy] of DIRS) if (grid[y + dy][x + dx] === 1) lockerCands.push({ x, y, dx, dy });
+  }
+  for (const c of pick(lockerCands, L.lockers, 4)) {
+    const m = buildLocker(), cx = (c.x + 0.5) * T, cz = (c.y + 0.5) * T;
+    const px = cx + c.dx * (T / 2 - 0.31), pz = cz + c.dy * (T / 2 - 0.31);
+    m.g.position.set(px, 0, pz); m.g.rotation.y = Math.atan2(-c.dx, -c.dy);
+    level.add(m.g);
+    const hw = c.dx ? 0.3 : 0.45, hd = c.dx ? 0.45 : 0.3;
+    obstacles.push({ x0: px - hw, x1: px + hw, z0: pz - hd, z1: pz + hd });
+    // точка перед дверцей: туда робот встаёт, когда вылезает
+    lockers.push({ x: px, z: pz, fx: px - c.dx * 0.75, fz: pz - c.dy * 0.75, pivot: m.pivot, openT: 0, a: 0 });
+  }
+}
+function updateHideouts(dt) {
+  for (const d of doors) {
+    const nearP = !player.hidden && Math.hypot(player.x - d.x, player.z - d.z) < 1.3;
+    const nearH = hunters.some(h => Math.hypot(h.x - d.x, h.z - d.z) < 1.3);
+    if (!d.isOpen && nearP && player.moving) openDoor(d, false);
+    if (d.isOpen) {
+      if (nearP || nearH) d.closeT = 1.2;
+      else if ((d.closeT -= dt) <= 0) { d.isOpen = false; sfx.creak(d.x, d.z, 0.5); }
+    }
+    d.a += ((d.isOpen ? 1 : 0) - d.a) * Math.min(1, dt * 8);
+    d.pivot.rotation.y = -d.a * 1.75;
+  }
+  for (const l of lockers) {
+    l.openT -= dt;
+    l.a += ((l.openT > 0 ? 1 : 0) - l.a) * Math.min(1, dt * 12);
+    l.pivot.rotation.y = -l.a * 1.4;
+  }
+}
+// игрок открывает дверь тихо (маленький круг), Охотник выламывает с грохотом
+function openDoor(d, byHunter) {
+  d.isOpen = true; d.closeT = 1.2;
+  if (byHunter) {
+    sfx.bang(d.x, d.z); FX.dust(d.x, d.z, 10);
+    emitRing(d.x, d.z, 6, 'hunter', null, 0.025);
+  } else {
+    sfx.creak(d.x, d.z, 1);
+    emitRing(d.x, d.z, 3, 'door');
+  }
+}
+function nearestLocker() {
+  let best = null, bd = 1.1;
+  for (const l of lockers) { const d = Math.hypot(l.fx - player.x, l.fz - player.z); if (d < bd) { bd = d; best = l; } }
+  return best;
+}
+function enterLocker(l) {
+  player.hidden = l; l.openT = 0.35;
+  player.x = l.fx; player.z = l.fz;
+  player.charging = false; sonarHeld = false;
+  sfx.creak(l.x, l.z, 0.8); emitRing(l.x, l.z, 2.5, 'door');
+  showMsg('ТЫ В ШКАФУ — ЗАМРИ. ДВИНЬСЯ, ЧТОБЫ ВЫЙТИ', 2.5);
+}
+function exitLocker() {
+  const l = player.hidden; if (!l) return;
+  player.hidden = null; l.openT = 0.35;
+  sfx.creak(l.x, l.z, 0.8); emitRing(l.x, l.z, 2.5, 'door');
+  for (const h of hunters) h.checkLocker = null;
+}
+
 const playerModel = buildPlayer();
 const playerBlob = makeBlob(1.0, 0.42);
 
 // ================= уровень =================
 const level = new THREE.Group(); scene.add(level);
-const cells = [], pickups = [], ghosts = [], thrown = [], rings = [], hunters = [], turrets = [], pings = [], guns = [], jets = [];
+const cells = [], pickups = [], ghosts = [], thrown = [], rings = [], hunters = [], turrets = [], pings = [], guns = [], jets = [], doors = [], lockers = [];
 let exitObj = null, L = LEVELS[0], levelIdx = 0;
 const disposables = [];
 
@@ -1233,7 +1502,7 @@ function buildLevel(def) {
   for (const d of disposables) d.dispose();
   disposables.length = 0;
   while (level.children.length) level.remove(level.children[0]);
-  for (const arr of [cells, pickups, ghosts, thrown, rings, hunters, turrets, guns, jets]) arr.length = 0;
+  for (const arr of [cells, pickups, ghosts, thrown, rings, hunters, turrets, guns, jets, doors, lockers, obstacles]) arr.length = 0;
   clearPings();
   exitObj = null;
 
@@ -1339,6 +1608,7 @@ function buildLevel(def) {
     }
   }
 
+  buildHideouts();
   level.add(playerModel.g);
   playerBlob.material.opacity = theme.dark ? 0.6 : 0.42;
   level.add(playerBlob);
@@ -1403,7 +1673,7 @@ const cam = { az: Math.PI / 4, azT: Math.PI / 4, dist: 20, distT: 20, el: 1.05, 
 
 function resetPlayer() {
   Object.assign(player, {
-    x: 1.5 * T, z: 1.5 * T, rot: 0, stamina: 100, exhausted: false, panic: 0, decoys: 1, got: 0, water: 0,
+    x: 1.5 * T, z: 1.5 * T, rot: 0, stamina: 100, exhausted: false, panic: 0, decoys: 1, got: 0, water: 0, hidden: null, crouchKeyPrev: false, touchCrouchPrev: false,
     crouch: false, stepT: 0, anim: 0, charge: 0, charging: false, cooldown: 0, heartT: 0, bpm: 65, moving: false,
   });
   cam.target.set(player.x, 0.6, player.z);
@@ -1514,6 +1784,8 @@ function hunterHear(h, x, z, source) {
   if (h.state === 'chase' && h.sees) return;
   h.state = 'investigate';
   hunterGoTo(h, x, z);
+  // звук прямо у шкафа, где прячется игрок, — Охотник заглянет внутрь
+  h.checkLocker = player.hidden && Math.hypot(x - player.hidden.fx, z - player.hidden.fz) < 1.8 ? player.hidden : null;
   if (source === 'decoy') flashAlert('ОН ИДЁТ НА ПРИМАНКУ');
   else if (source === 'heart') flashAlert('ОН УСЛЫШАЛ ТВОЁ СЕРДЦЕ');
   else if (source === 'alarm') flashAlert('ОХОТНИК БЕЖИТ НА ТРЕВОГУ');
@@ -1552,7 +1824,17 @@ function updateHunter(h, dt) {
     return;
   }
   const dx = player.x - h.x, dz = player.z - h.z, dist = Math.hypot(dx, dz);
-  h.sees = dist < (h.state === 'chase' ? CFG.hunter.keep : CFG.hunter.sense) && los(h.x, h.z, player.x, player.z);
+  // закрытая дверь на пути: стоит и выламывает
+  const door = h.state !== 'idle' && doors.find(d => !d.isOpen && Math.hypot(h.x - d.x, h.z - d.z) < 1.15);
+  if (door) {
+    h.doorT = (h.doorT || 0) + dt;
+    if (h.doorT > 1.3) { h.doorT = 0; openDoor(door, true); }
+    h.sees = false; h.speedNow = 0;
+    animateHunter(h, dt, 0);
+    return;
+  }
+  h.doorT = 0;
+  h.sees = !player.hidden && dist < (h.state === 'chase' ? CFG.hunter.keep : CFG.hunter.sense) && los(h.x, h.z, player.x, player.z);
   if (h.state !== 'idle' && h.sees && h.state !== 'chase') {
     h.state = 'chase'; wasChased = true; sfx.growl(h.x, h.z, 0.4); flashAlert('ТЕБЯ ЗАМЕТИЛИ — БЕГИ');
   }
@@ -1609,7 +1891,10 @@ function updateHunter(h, dt) {
   if (h.growlT <= 0) { h.growlT = h.state === 'chase' ? rand(2, 4) : rand(6, 11); sfx.growl(h.x, h.z, h.state === 'chase' ? 0.3 : 0.15); }
 
   animateHunter(h, dt, speed);
-  if (dist < CFG.hunter.catch) die(h);
+  if (player.hidden) {
+    // из шкафа достанет, только если пришёл на звук рядом с ним
+    if (h.checkLocker === player.hidden && dist < 1.3 && !dbg.god) { exitLocker(); die(h); }
+  } else if (dist < CFG.hunter.catch && !dbg.god) die(h);
 }
 function animateHunter(h, dt, speed) {
   h.anim += dt * (speed > 0 ? speed * 2.6 : 1.2);
@@ -1629,7 +1914,7 @@ function animateHunter(h, dt, speed) {
   } else md.head.rotation.z = 0;
   // камуфляж: виден только вблизи; замыкание его тоже срывает
   const d = Math.hypot(h.x - player.x, h.z - player.z);
-  const target = (state === 'dead' && h === catcher) || stunned ? 1 : clamp((5 - d) / 2.5, 0, 1);
+  const target = (state === 'dead' && h === catcher) || stunned || dbg.see ? 1 : clamp((5 - d) / 2.5, 0, 1);
   h.vis += (target - h.vis) * Math.min(1, dt * 6);
   const v = h.vis;
   for (const m of Object.values(md.mats)) {
@@ -1664,6 +1949,7 @@ function setupCloak(h) {
 
 // ================= игрок =================
 function pressSonar() {
+  if (player.hidden) return;
   sonarHeld = true;
   if (!player.charging && player.cooldown <= 0) { player.charging = true; player.charge = 0; }
 }
@@ -1672,7 +1958,9 @@ function releaseSonar() {
   if (!player.charging) return;
   player.charging = false;
   const k = player.charge;
-  emitRing(player.x, player.z, CFG.sonarMin + (CFG.sonarMax - CFG.sonarMin) * k, 'sonar');
+  const sonarR = CFG.sonarMin + (CFG.sonarMax - CFG.sonarMin) * k;
+  emitRing(player.x, player.z, sonarR, 'sonar');
+  sonarFlash(player.x, player.z, sonarR);
   sfx.sonar(k);
   player.cooldown = CFG.sonarCooldown;
   player.charge = 0;
@@ -1687,6 +1975,7 @@ function aimPoint() {
   return { x: player.x + dx, z: player.z + dz, d };
 }
 function throwDecoy(target) {
+  if (player.hidden) return;
   if (player.decoys <= 0) { showMsg('НЕТ ПРИМАНОК', 1); return; }
   const a = target || aimPoint(); if (!a) return;
   player.decoys--;
@@ -1702,6 +1991,7 @@ function throwDecoy(target) {
 const jetGeo = new THREE.CapsuleGeometry(0.06, 0.45, 4, 8).rotateX(Math.PI / 2);
 const jetMat = new THREE.MeshBasicMaterial({ color: 0x7cc8ff, transparent: true, opacity: 0.85 });
 function fireWater(target) {
+  if (player.hidden) return;
   if (player.water <= 0) { showMsg('НЕТ ВОДЫ', 1); return; }
   const a = target || aimPoint();
   let dx = a ? a.x - player.x : Math.sin(player.rot), dz = a ? a.z - player.z : Math.cos(player.rot);
@@ -1735,7 +2025,7 @@ function updateJets(dt) {
       j.x += j.dx * st; j.z += j.dz * st; j.went += st;
       const h = hunters.find(h => Math.hypot(h.x - j.x, h.z - j.z) < 0.65);
       if (h) { if (h.stunT <= 0) stunHunter(h); splashAt(j.x, j.z); hit = true; }
-      else if (isWall(j.x, j.z) || j.went > CFG.waterRange) { splashAt(j.x - j.dx * 0.3, j.z - j.dz * 0.3); hit = true; }
+      else if (blockedAt(j.x, j.z) || j.went > CFG.waterRange) { splashAt(j.x - j.dx * 0.3, j.z - j.dz * 0.3); hit = true; }
     }
     j.mesh.position.set(j.x, 0.85, j.z);
     j.mesh.rotation.y = Math.atan2(j.dx, j.dz);
@@ -1778,8 +2068,22 @@ function updatePlayer(dt) {
   let str = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
   const joyOn = joy.id !== null && joy.mag > 0.18;
   if (joyOn) { fwd = -joy.y; str = joy.x; }
-  const moving = fwd !== 0 || str !== 0;
-  player.crouch = held('crouch') || touchCrouch;
+  // присесть у шкафа — залезть; в шкафу движение или «присесть» — вылезти
+  const crouchKey = held('crouch');
+  const crouchPressed = (crouchKey && !player.crouchKeyPrev) || touchCrouch !== player.touchCrouchPrev;
+  player.crouchKeyPrev = crouchKey; player.touchCrouchPrev = touchCrouch;
+  if (player.hidden) {
+    if (fwd !== 0 || str !== 0 || crouchPressed) exitLocker();
+    else { fwd = str = 0; }
+  } else if (crouchPressed && (crouchKey || touchCrouch)) {
+    const l = nearestLocker();
+    if (l) {
+      enterLocker(l);
+      touchCrouch = false; player.touchCrouchPrev = false; $('btnCrouch').classList.remove('on');
+    }
+  }
+  const moving = !player.hidden && (fwd !== 0 || str !== 0);
+  player.crouch = !player.hidden && (crouchKey || touchCrouch);
   if (player.stamina <= 0) player.exhausted = true;
   if (player.exhausted && player.stamina > 30) player.exhausted = false;
   const running = (held('run') || (joyOn && joy.mag >= settings.runAt / 100)) && moving && !player.crouch && !player.exhausted;
@@ -1803,6 +2107,7 @@ function updatePlayer(dt) {
       if (!player.crouch) {
         sfx.step(running);
         if (running) FX.dust(player.x, player.z, 3);
+        if (running && skin.trail) emitParticles(sparks, player.x, 0.35, player.z, 4, { speed: 0.6, up: 1.2, spread: 0.15, life: 0.6, size: 1, grav: 2, color: skin.trail });
         emitRing(player.x, player.z, running ? CFG.ring.run : CFG.ring.walk, 'step');
       }
     }
@@ -1859,8 +2164,9 @@ function updatePlayer(dt) {
   for (const h of hunters) dist = Math.min(dist, Math.hypot(h.x - player.x, h.z - player.z));
   const near = Math.max(0, 1 - dist / 10);
   const chased = hunters.some(h => h.state === 'chase');
-  const rise = near * near * 55 + (chased ? 10 : 0) + (running ? 5 : 0);
-  const calm = player.crouch && !moving ? 22 : !moving ? 12 : player.crouch ? 9 : 5;
+  // в шкафу безопасно, но тесно: страх растёт быстрее, а успокаиваться труднее
+  const rise = (near * near * 55 + (chased ? 10 : 0) + (running ? 5 : 0)) * (player.hidden ? 1.6 : 1);
+  const calm = player.hidden ? 8 : player.crouch && !moving ? 22 : !moving ? 12 : player.crouch ? 9 : 5;
   player.panic = clamp(player.panic + (rise - calm) * dt, 0, 100);
   player.bpm = 65 + player.panic * 0.95;
   player.heartT += dt * player.bpm / 60;
@@ -1876,6 +2182,11 @@ function updatePlayer(dt) {
 }
 function animatePlayer(dt, running) {
   const p = playerModel, mv = player.moving ? 1 : 0, sw = Math.sin(player.anim);
+  p.g.visible = playerBlob.visible = !player.hidden;
+  // подсказка у шкафа
+  const lk = !player.hidden && state === 'playing' && nearestLocker();
+  $('prompt').textContent = player.hidden ? 'Двинься, чтобы вылезти' : lk ? (touchMode ? '«Присесть» — спрятаться в шкаф' : `${bindLabel('crouch')} — спрятаться в шкаф`) : '';
+  $('prompt').style.opacity = $('prompt').textContent ? 1 : 0;
   p.g.position.set(player.x, 0, player.z);
   p.g.rotation.y = player.rot;
   const crouchK = player.crouch ? 0.82 : 1;
@@ -1991,7 +2302,9 @@ reticle.renderOrder = 10; scene.add(reticle);
 function updateCamera(dt) {
   cam.az += (cam.azT - cam.az) * Math.min(1, dt * 8);
   cam.dist += (cam.distT - cam.dist) * Math.min(1, dt * 6);
-  cam.target.lerp(_v.set(player.x, 0.6, player.z), Math.min(1, dt * 6));
+  // lift: сдвиг точки взгляда к камере — робот поднимается выше по экрану (экран «Робот»)
+  cam.lift = (cam.lift || 0) + ((cam.liftT || 0) - (cam.lift || 0)) * Math.min(1, dt * 4);
+  cam.target.lerp(_v.set(player.x + Math.sin(cam.az) * cam.lift, 0.6, player.z + Math.cos(cam.az) * cam.lift), Math.min(1, dt * 6));
   // в портретной ориентации экран узкий: шире угол обзора и камера дальше
   const narrow = Math.max(0, 1 - camera.aspect);
   const fov = 32 + narrow * 22;
@@ -2041,11 +2354,14 @@ function updateDeath(dt) {
 function win() {
   state = 'won'; sfx.win();
   const stars = 1 + (playTime <= L.par ? 1 : 0) + (wasChased ? 0 : 1);
-  const rec = progress.levels[levelIdx] || {};
-  progress.levels[levelIdx] = { stars: Math.max(rec.stars || 0, stars), time: rec.time ? Math.min(rec.time, playTime) : playTime };
-  progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, levelIdx + 2));
-  store.set('echo_progress', progress);
+  if (!dbg.used) {   // прохождение с отладкой не считается
+    const rec = progress.levels[levelIdx] || {};
+    progress.levels[levelIdx] = { stars: Math.max(rec.stars || 0, stars), time: rec.time ? Math.min(rec.time, playTime) : playTime };
+    progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, levelIdx + 2));
+    store.set('echo_progress', progress);
+  }
   showResult(true, stars);
+  if (dbg.used) $('rGoals').innerHTML += '<br><span style="color:var(--dim)">Отладка включена — прогресс не записан.</span>';
 }
 function showResult(won, stars = 0) {
   if (state === 'dead') state = 'over';
@@ -2068,11 +2384,12 @@ function showResult(won, stars = 0) {
 }
 
 // ================= экраны и меню =================
-const SCREENS = ['mainMenu', 'levels', 'howto', 'settings', 'pause', 'result', 'layout'];
+const SCREENS = ['mainMenu', 'levels', 'howto', 'settings', 'pause', 'result', 'layout', 'skins'];
 let settingsBack = 'mainMenu';
 function show(id) {
   for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
   if (id === 'levels') renderLevels();
+  if (id === 'skins') renderSkins();
   if (id !== 'settings') cancelRebind(true);
   // стик виден в игре и в редакторе расположения
   document.body.classList.toggle('editing', id === 'layout');
@@ -2090,7 +2407,7 @@ function renderLevels() {
     b.innerHTML = `${locked ? '<div class="lock">ЗАКРЫТО</div>' : ''}<div class="n">${String(i + 1).padStart(2, '0')}</div>
       <div class="nm">${lv.name}</div><div class="st">${'★'.repeat(st)}<span class="e">${'★'.repeat(3 - st)}</span></div>
       <div class="bt">${rec ? 'лучшее ' + fmt(rec.time) : `${lv.cellsN} ячеек · ${lv.hunters} охот.`}</div>
-      <div class="tags">${lv.pistols ? '<span class="tg w">вода</span>' : ''}${lv.reinforce ? '<span class="tg r">+охотники</span>' : ''}${lv.turrets ? '<span class="tg">турели</span>' : ''}</div>`;
+      <div class="tags">${lv.lockers ? '<span class="tg">шкафы</span>' : ''}${lv.pistols ? '<span class="tg w">вода</span>' : ''}${lv.turrets ? '<span class="tg">турели</span>' : ''}${lv.doors ? '<span class="tg">двери</span>' : ''}${lv.reinforce ? '<span class="tg r">+охотники</span>' : ''}${lv.blackout ? '<span class="tg d">блэкаут</span>' : ''}</div>`;
     if (!locked) b.onclick = () => { sfx.click(); startLevel(i); };
     gEl.appendChild(b);
   });
@@ -2102,7 +2419,25 @@ function renderLevels() {
 // ---- режим администратора: открывает все уровни (звёзды за пройденные записываются как обычно) ----
 // Вход спрятан: 5 быстрых нажатий на заголовок «Уровни». В коде лежит только SHA-256 от кода,
 // сам код в исходниках не виден. Это защита от случайных игроков, а не от взлома: игра целиком в браузере.
-const ADMIN_HASH = '5db1fee4b5703808c48078a76768b155b421b210c0761cd6a5d223f4d99f1eaa';
+// ---- скины ----
+const totalStars = () => Object.values(progress.levels).reduce((s, r) => s + (r.stars || 0), 0);
+function renderSkins() {
+  const have = totalStars();
+  $('skinStars').textContent = `★ ${have} из ${LEVELS.length * 3}`;
+  const gEl = $('skinGrid'); gEl.innerHTML = '';
+  for (const s of SKINS) {
+    const open = isAdmin || have >= s.stars;
+    const b = document.createElement('button');
+    b.className = 'skin' + (s === skin ? ' on' : '') + (open ? '' : ' locked');
+    const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+    b.innerHTML = `<div class="sw" style="background:${hex(s.helm)}"><i style="background:${hex(s.band)}"></i></div>${s.name}` +
+      `<span class="req">${open ? (s === skin ? 'выбран' : 'открыт') : `нужно ★ ${s.stars}`}</span>`;
+    if (open) b.onclick = () => { sfx.click(); applySkin(s); settings.skin = s.id; saveSettings(); renderSkins(); };
+    gEl.appendChild(b);
+  }
+}
+
+const ADMIN_HASH ='5db1fee4b5703808c48078a76768b155b421b210c0761cd6a5d223f4d99f1eaa';
 let isAdmin = store.get('echo_admin', false) === true;
 let titleTaps = [];
 $('lvlTitle').addEventListener('click', () => {
@@ -2126,13 +2461,37 @@ $('adminBox').addEventListener('submit', async (e) => {
   isAdmin = true; store.set('echo_admin', true);
   sfx.win(); renderLevels();
 });
-$('adminExit').onclick = () => { sfx.click(); isAdmin = false; store.set('echo_admin', false); renderLevels(); };
+$('adminExit').onclick = () => {
+  sfx.click(); isAdmin = false; store.set('echo_admin', false);
+  dbg.god = dbg.see = dbg.fast = false;
+  renderLevels();
+};
+
+// ---- панель отладки (в паузе, только у админа) ----
+const dbg = { god: false, see: false, fast: false, used: false };
+function syncDbg() {
+  $('dbgGod').classList.toggle('on', dbg.god);
+  $('dbgSee').classList.toggle('on', dbg.see);
+  $('dbgFast').classList.toggle('on', dbg.fast);
+}
+for (const [id, key] of [['dbgGod', 'god'], ['dbgSee', 'see'], ['dbgFast', 'fast']]) {
+  $(id).onclick = () => { sfx.click(); dbg[key] = !dbg[key]; if (dbg[key]) dbg.used = true; syncDbg(); };
+}
+$('dbgCells').onclick = () => {
+  sfx.click(); dbg.used = true;
+  for (const c of [...cells]) { level.remove(c.g); removePing(c); }
+  cells.length = 0; player.got = L.cellsN;
+  if (!exitObj) openExit();
+  resume();
+};
+$('dbgWin').onclick = () => { sfx.click(); dbg.used = true; win(); };
+$('dbgDark').onclick = () => { sfx.click(); startBlackout(); resume(); };
 function startLevel(i) {
   initAudio();
   levelIdx = i;
   buildLevel(LEVELS[i]);
   resetPlayer();
-  playTime = 0; wasChased = false; catcher = null; cam.distT = 20; cam.shake = 0;
+  playTime = 0; wasChased = false; catcher = null; cam.distT = 20; cam.shake = 0; cam.liftT = 0;
   playerModel.body.rotation.z = 0;
   state = 'playing';
   show(null);
@@ -2141,8 +2500,10 @@ function startLevel(i) {
   $('hLevel').textContent = `${String(i + 1).padStart(2, '0')} · ${L.name}`;
   $('iNum').textContent = `Уровень ${String(i + 1).padStart(2, '0')}`;
   $('iName').textContent = L.name;
-  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')).replace('{water}', bindLabel('water')) : `Собери ${L.cellsN} энергоячеек.`;
+  $('iText').textContent = settings.hints ? (touchMode && L.introTouch || L.intro).replace('{decoy}', bindLabel('decoy')).replace('{water}', bindLabel('water')).replace('{crouch}', bindLabel('crouch')) : `Собери ${L.cellsN} энергоячеек.`;
   touchCrouch = false; $('btnCrouch').classList.remove('on'); $('joyHint').style.opacity = 1;
+  resetBlackout(L.blackout);
+  dbg.used = dbg.god || dbg.see || dbg.fast;
   $('intro').style.opacity = 1; introT = settings.hints ? 6 : 3;
   resetPerf();
 }
@@ -2152,11 +2513,13 @@ function pauseGame() {
   state = 'paused'; show('pause');
   sonarHeld = false; player.charging = false;
   for (const k in keys) keys[k] = false;
+  $('dbgPanel').hidden = !isAdmin;
+  syncDbg();
 }
 function resume() { if (state !== 'paused') return; state = 'playing'; show(null); resetPerf(); }
 function toMenu() {
   state = 'menu'; $('hud').classList.add('hidden'); $('vignette').style.opacity = 0;
-  buildLevel(LEVELS[0]); resetPlayer(); clearPings();
+  buildLevel(LEVELS[0]); resetPlayer(); clearPings(); resetBlackout(false);
   show('mainMenu');
 }
 
@@ -2468,7 +2831,7 @@ function frame() {
   if (audioSleeping && !document.hidden) { audioSleeping = false; A.ctx.resume(); }
   const raw = clock.getDelta();
   watchPerf(raw);
-  tick(Math.min(raw, 0.05));
+  tick(Math.min(raw, 0.05) * (dbg.fast && state === 'playing' ? 2 : 1));
 }
 // Автоподбор графики: в игре 4 секунды считаем кадры (первые 2 секунды после старта
 // или паузы пропускаем). Меньше 40 кадров в секунду — снижаем качество на ступень.
@@ -2496,6 +2859,8 @@ function tick(dt) {
     updateTurrets(dt);
     updateThrown(dt);
     updateJets(dt);
+    updateHideouts(dt);
+    updateBlackout(dt);
     updateHUD(dt);
     introT -= dt; $('intro').style.opacity = clamp(introT, 0, 1);
     const showAim = touchMode ? !!(aim && aim.moved) : player.decoys > 0;
@@ -2507,7 +2872,9 @@ function tick(dt) {
   }
   if (state === 'dead') updateDeath(dt);
   if (state === 'menu') {
-    cam.azT += dt * 0.08; cam.distT = 30;
+    // на экране скинов камера подлетает к роботу, чтобы было видно раскраску
+    const skinView = !$("skins").classList.contains("hidden");
+    cam.azT += dt * (skinView ? 0.35 : 0.08); cam.distT = skinView ? 7 : 30; cam.liftT = skinView ? 1.6 : 0;
     menuT -= dt;
     if (menuT <= 0) { menuT = 3; emitRing(player.x, player.z, 14, 'sonar'); }
     for (const h of hunters) animateHunter(h, dt, 0);
@@ -2545,8 +2912,9 @@ buildLevel(LEVELS[0]);
 resetPlayer();
 applyQuality();
 fillBindLabels();
+{ const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
 frame();
-window.__echo = { player, hunters, cells, turrets, guns, jets, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+window.__echo = { player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
 </body>
 </html>
