@@ -38,7 +38,7 @@
   .topRight { display: flex; align-items: center; gap: 12px; }
   #hTimer { font-size: 22px; font-weight: 600; }
   .iconBtn { pointer-events: auto; width: 40px; height: 40px; border: 2px solid var(--line); background: var(--panel);
-    border-radius: 10px; cursor: pointer; font: 700 15px "Barlow Condensed", sans-serif; color: var(--ink); }
+    border-radius: 10px; cursor: pointer; font: 700 15px "Barlow Condensed", sans-serif; color: #3a3a3a; }
   .iconBtn:hover { border-color: var(--orange); color: var(--orange); }
 
   #hPlayer { position: absolute; left: calc(24px + env(safe-area-inset-left, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 250px; }
@@ -126,6 +126,23 @@
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
   .opt:last-child { border-bottom: 0; }
   input[type=range] { width: 200px; accent-color: var(--orange); }
+  .seg { display: flex; border: 2px solid var(--line); border-radius: 9px; overflow: hidden; flex: none; }
+  .seg button { font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: 0.04em; padding: 7px 11px; border: 0; background: #fff;
+    color: var(--dim); cursor: pointer; }
+  .seg button + button { border-left: 2px solid var(--line); }
+  .seg button.on { background: var(--orange); color: #fff; }
+  .optNote { color: var(--dim); font-size: 13px; }
+  /* тёмный уровень: светлый текст интерфейса поверх тёмной сцены */
+  body.darkLevel #hud { --ink: #ececea; --dim: #a7a7a1; color: var(--ink); }
+  body.darkLevel #msg { text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
+  body.darkLevel #hCells i:not(.on) { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.3); }
+  body.darkLevel .icard { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.5); box-shadow: none; }
+  body.darkLevel .pbar { background: rgba(255, 255, 255, 0.15); }
+  body.darkLevel .fbar { background: rgba(255, 255, 255, 0.15); }
+  body.darkLevel #joyHint { color: #ececea; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+  body.darkLevel #intro { background: rgba(40, 40, 44, 0.92); border-color: rgba(255, 255, 255, 0.25); box-shadow: none; }
+  body.darkLevel #intro .t { color: #f2f2ef; }
+  body.darkLevel #intro .d { color: #c8c8c2; }
   .tog { width: 52px; height: 28px; border-radius: 14px; background: var(--line); position: relative; cursor: pointer; border: 0; flex: none; }
   .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left 0.15s; }
   .tog.on { background: var(--orange); }
@@ -302,7 +319,9 @@
       <div class="opt touchOnly"><span>Стик ходьбы и «Присесть»</span><button class="b" id="optJoyEdit" style="font-size:15px;padding:8px 14px">Переместить</button></div>
       <div class="opt touchOnly"><span>Размер стика</span><input type="range" id="optJoySize" min="70" max="150"></div>
       <div class="opt"><span>Громкость</span><input type="range" id="optVol" min="0" max="100"></div>
-      <div class="opt"><span>Тени</span><button class="tog" id="optShadows"></button></div>
+      <div class="opt"><span>Графика</span>
+        <div class="seg" id="optQuality"><button data-q="low">Низкая</button><button data-q="medium">Средняя</button><button data-q="high">Высокая</button></div></div>
+      <div class="opt"><span>Эффект миниатюры <small class="optNote">(при высокой графике)</small></span><button class="tog" id="optTilt"></button></div>
       <div class="opt"><span>Тряска камеры</span><button class="tog" id="optShake"></button></div>
       <div class="opt"><span>Подсказки в начале уровня</span><button class="tog" id="optHints"></button></div>
       <div class="opt"><span>Прогресс</span><button class="b" id="optReset" style="font-size:15px;padding:8px 14px">Сбросить</button></div>
@@ -359,6 +378,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ================= настройки игры =================
 const CFG = {
@@ -396,16 +416,19 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const JOY_DEFAULT = { joyX: 0.24, joyY: 0.84, joyScale: 100 };
-const settings = Object.assign({ volume: 80, shadows: true, shake: true, hints: true, ...JOY_DEFAULT }, store.get('echo_settings', {}));
+const savedSettings = store.get('echo_settings', {});
+// раньше была только галочка «Тени» — выключенные тени превращаются в низкое качество
+if (!savedSettings.quality && savedSettings.shadows === false) savedSettings.quality = 'low';
+const settings = Object.assign({ volume: 80, quality: matchMedia('(pointer: coarse)').matches ? 'medium' : 'high', tilt: true,
+  shake: true, hints: true, ...JOY_DEFAULT }, savedSettings);
+delete settings.shadows;
 let progress = Object.assign({ unlocked: 1, levels: {} }, store.get('echo_progress', {}));
 
 // ================= рендер =================
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 const COARSE = matchMedia('(pointer: coarse)').matches;
-renderer.setPixelRatio(Math.min(devicePixelRatio, COARSE ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = settings.shadows;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -417,34 +440,266 @@ const LAYER_PLAYER = 1, LAYER_XRAY = 2;
 renderer.autoClear = false;
 renderer.shadowMap.autoUpdate = false;
 renderer.setClearColor(BG);
-const hemi = new THREE.HemisphereLight(0xffffff, 0x8c8c86, 1.0);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8c8c86, 0.55);
 hemi.layers.enableAll(); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfffaf2, 2.6);
+const sun = new THREE.DirectionalLight(0xfffaf2, 2.4);
 sun.layers.enableAll();
 sun.shadow.camera.layers.enable(LAYER_PLAYER);
 sun.castShadow = true;
-sun.shadow.mapSize.setScalar(COARSE ? 1024 : 2048);
-Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 90 });
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 90 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
+// мягкий отражённый свет «студии» — даёт пластику блики и объём
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  post.resize();
 });
 
-const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0, ...o });
+const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0, envMapIntensity: 0.4, ...o });
 const MAT = {
-  block: std(0xffffff), white: std(0xf4f4f1, { roughness: 0.45 }), grey: std(0x9c9c97), dark: std(0x48484c, { roughness: 0.6 }),
-  orange: std(0xf28a1e, { roughness: 0.55 }), orangeDark: std(0xc86b12, { roughness: 0.6 }),
-  glow: std(0xf28a1e, { emissive: 0xf28a1e, emissiveIntensity: 0.7, roughness: 0.4 }),
-  visor: std(0x2a2a2e, { roughness: 0.2, metalness: 0.3 }),
+  block: std(0xffffff, { envMapIntensity: 0.12 }), white: std(0xf4f4f1, { roughness: 0.3, envMapIntensity: 0.9 }),
+  grey: std(0x9c9c97, { roughness: 0.5 }), dark: std(0x48484c, { roughness: 0.45 }),
+  orange: std(0xf28a1e, { roughness: 0.38, envMapIntensity: 0.8 }), orangeDark: std(0xc86b12, { roughness: 0.6 }),
+  glow: std(0xf28a1e, { emissive: 0xf28a1e, emissiveIntensity: 0.9, roughness: 0.3 }),
+  visor: std(0x1e1e22, { roughness: 0.08, metalness: 0.4, envMapIntensity: 1.4 }),
   lamp: std(0xff3040, { emissive: 0xff2030, emissiveIntensity: 1.2 }),
+  metal: std(0x9aa0a6, { roughness: 0.32, metalness: 0.65, envMapIntensity: 0.9 }),
+  lampWarm: std(0xfff1d6, { emissive: 0xffc070, emissiveIntensity: 0.8 }),
 };
+// темы уровней: фон, тон стен/пола, свет и декор
+const THEMES = [
+  { bg: 0xe8e8e4, wall: [0.56, 0.61], floor: [0.6, 0.55], tint: [1, 1, 0.985], base: 0x9a9a95, hemi: 0.42, sun: 2.7, props: [] },
+  { bg: 0xe2e6ea, wall: [0.54, 0.59], floor: [0.58, 0.53], tint: [0.96, 0.99, 1.04], base: 0x93989e, hemi: 0.42, sun: 2.6, props: ['pipes'] },
+  { bg: 0xe2e5dc, wall: [0.53, 0.58], floor: [0.57, 0.52], tint: [0.97, 1.0, 0.93], base: 0x94978d, hemi: 0.42, sun: 2.7, props: ['stripes', 'pipes'] },
+  { bg: 0xece6da, wall: [0.57, 0.62], floor: [0.61, 0.56], tint: [1.05, 1.0, 0.92], base: 0xa39d90, hemi: 0.42, sun: 2.8, props: ['stripes', 'lamps'] },
+  { bg: 0x2a2a2f, wall: [0.2, 0.24], floor: [0.23, 0.2], tint: [1, 0.98, 0.97], base: 0x1c1c20, hemi: 0.3, sun: 1.3, props: ['lamps', 'pipes'],
+    dark: true, lampGlow: 2.6, hunterRing: 0x0c0c0e },
+];
+let theme = THEMES[0];
+function applyTheme(t) {
+  theme = t;
+  renderer.setClearColor(t.bg); scene.fog.color.set(t.bg);
+  hemi.intensity = t.hemi; sun.intensity = t.sun;
+  MAT.lampWarm.emissiveIntensity = t.lampGlow || 0.8;
+  RING_COL.hunter = t.hunterRing || 0x26262a;
+  document.body.classList.toggle('darkLevel', !!t.dark);
+}
 const GEO = {
   cube: new RoundedBoxGeometry(0.98, 0.98, 0.98, 2, 0.07),
   slab: new RoundedBoxGeometry(1.96, 0.3, 1.96, 2, 0.06),
   ring: new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
 };
+
+// ================= графика: постобработка, частицы, затенение =================
+// Высокое качество рисует кадр в текстуру, а затем: размытие сверху и снизу экрана
+// (эффект макета-миниатюры), лёгкое свечение ярких мест и виньетка.
+const fsGeo = new THREE.PlaneGeometry(2, 2), fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), fsScene = new THREE.Scene();
+const fsQuad = new THREE.Mesh(fsGeo); fsQuad.frustumCulled = false; fsScene.add(fsQuad);
+const FS_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+const blurMat = new THREE.ShaderMaterial({
+  depthTest: false, depthWrite: false, toneMapped: false,
+  uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } },
+  vertexShader: FS_VERT,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uDir; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv) * 0.2270;
+      c += (texture2D(tDiffuse, vUv + uDir * 1.3846) + texture2D(tDiffuse, vUv - uDir * 1.3846)) * 0.3162;
+      c += (texture2D(tDiffuse, vUv + uDir * 3.2308) + texture2D(tDiffuse, vUv - uDir * 3.2308)) * 0.0703;
+      gl_FragColor = c;
+    }`,
+});
+const compMat = new THREE.ShaderMaterial({
+  depthTest: false, depthWrite: false,
+  uniforms: { tSharp: { value: null }, tBlur: { value: null }, uFocus: { value: 0.5 }, uTilt: { value: 1 }, uGlow: { value: 1 } },
+  vertexShader: FS_VERT,
+  fragmentShader: `uniform sampler2D tSharp; uniform sampler2D tBlur; uniform float uFocus; uniform float uTilt; uniform float uGlow; varying vec2 vUv;
+    void main() {
+      vec3 sharp = texture2D(tSharp, vUv).rgb, blur = texture2D(tBlur, vUv).rgb;
+      float k = smoothstep(0.14, 0.5, abs(vUv.y - uFocus)) * uTilt;
+      vec3 col = mix(sharp, blur, k);
+      float lum = dot(blur, vec3(0.2126, 0.7152, 0.0722));
+      col += blur * smoothstep(1.1, 2.4, lum) * 0.45 * uGlow;
+      vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.32;
+      gl_FragColor = vec4(col, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+});
+const post = {
+  enabled: false, rt: null, a: null, b: null,
+  resize() {
+    for (const k of ['rt', 'a', 'b']) if (this[k]) { this[k].dispose(); this[k] = null; }
+    if (!this.enabled) return;
+    const pr = renderer.getPixelRatio(), w = Math.max(1, Math.floor(innerWidth * pr)), h = Math.max(1, Math.floor(innerHeight * pr));
+    this.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: 4 });
+    const hw = Math.max(1, w >> 2), hh = Math.max(1, h >> 2);
+    this.a = new THREE.WebGLRenderTarget(hw, hh, { type: THREE.HalfFloatType, depthBuffer: false });
+    this.b = this.a.clone();
+    this.texel = new THREE.Vector2(1 / hw, 1 / hh);
+  },
+  pass(mat, target) { fsQuad.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); },
+  finish(focusY) {
+    blurMat.uniforms.tDiffuse.value = this.rt.texture;
+    for (let i = 0; i < 2; i++) {
+      blurMat.uniforms.uDir.value.set(this.texel.x, 0); this.pass(blurMat, this.a);
+      blurMat.uniforms.uDir.value.set(0, this.texel.y); blurMat.uniforms.tDiffuse.value = this.a.texture; this.pass(blurMat, this.b);
+      blurMat.uniforms.tDiffuse.value = this.b.texture;
+    }
+    compMat.uniforms.tSharp.value = this.rt.texture;
+    compMat.uniforms.tBlur.value = this.b.texture;
+    compMat.uniforms.uFocus.value = focusY;
+    compMat.uniforms.uTilt.value = settings.tilt ? 1 : 0;
+    compMat.uniforms.uGlow.value = theme.dark ? 1.6 : 1;
+    this.pass(compMat, null);
+  },
+};
+
+// частицы: пыль (освещённая) и искры (светящиеся)
+function makeParticles(geo, mat, max) {
+  const mesh = new THREE.InstancedMesh(geo, mat, max);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.setColorAt(0, new THREE.Color()); mesh.count = 0; mesh.frustumCulled = false;
+  scene.add(mesh);
+  return { mesh, list: [], max };
+}
+const dust = makeParticles(new THREE.IcosahedronGeometry(0.1, 1), std(0xffffff, { roughness: 1, envMapIntensity: 0.3 }), 160);
+const sparks = makeParticles(new THREE.OctahedronGeometry(0.06), new THREE.MeshBasicMaterial({ color: 0xffffff }), 160);
+const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _ps = new THREE.Vector3(), _pp = new THREE.Vector3(), _pc = new THREE.Color();
+function emitParticles(sys, x, y, z, n, o) {
+  for (let i = 0; i < n; i++) {
+    if (sys.list.length >= sys.max) sys.list.shift();
+    const a = Math.random() * Math.PI * 2, sp = rand(o.speed * 0.5, o.speed);
+    sys.list.push({ x: x + rand(-o.spread, o.spread), y, z: z + rand(-o.spread, o.spread),
+      vx: Math.cos(a) * sp, vy: rand(o.up * 0.5, o.up), vz: Math.sin(a) * sp,
+      t: 0, life: rand(o.life * 0.7, o.life), size: rand(o.size * 0.7, o.size), grav: o.grav ?? 0, col: o.color, rot: Math.random() * 6 });
+  }
+}
+function updateParticles(sys, dt) {
+  let n = 0;
+  for (let i = sys.list.length - 1; i >= 0; i--) {
+    const p = sys.list[i];
+    p.t += dt;
+    if (p.t >= p.life) { sys.list.splice(i, 1); continue; }
+    p.vy -= p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    p.vx *= 1 - dt * 2.5; p.vz *= 1 - dt * 2.5;
+    if (p.y < 0.03) { p.y = 0.03; p.vy *= -0.3; }
+    const k = p.t / p.life, s = p.size * Math.sin(Math.min(1, k * 4) * Math.PI / 2) * (1 - k);
+    _pq.setFromAxisAngle(_ps.set(0, 1, 0), p.rot + p.t * 3);
+    _pm.compose(_pp.set(p.x, p.y, p.z), _pq, _ps.set(s, s, s) );
+    sys.mesh.setMatrixAt(n, _pm);
+    sys.mesh.setColorAt(n, _pc.set(p.col));
+    n++;
+  }
+  sys.mesh.count = n;
+  sys.mesh.instanceMatrix.needsUpdate = true;
+  if (sys.mesh.instanceColor) sys.mesh.instanceColor.needsUpdate = true;
+}
+const FX = {
+  dust: (x, z, n = 3) => emitParticles(dust, x, 0.08, z, n, { speed: 0.9, up: 0.6, spread: 0.15, life: 0.7, size: 1.4, color: theme.dark ? 0x55555a : 0xc9c9c4 }),
+  burst: (x, y, z, n, color) => emitParticles(sparks, x, y, z, n, { speed: 3, up: 3.5, spread: 0.1, life: 0.8, size: 1.3, grav: 7, color }),
+  mote: (x, y, z, color) => emitParticles(sparks, x, y, z, 1, { speed: 0.15, up: 0.7, spread: 0.3, life: 1.6, size: 0.8, color }),
+};
+
+// мягкая «контактная» тень-пятно под персонажами
+const blobTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+function makeBlob(size, opacity) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, opacity, depthWrite: false, color: 0x000000 }));
+  m.renderOrder = 1; m.userData.base = opacity;
+  return m;
+}
+
+// Запечённое затенение: стены и ящики размываются в маску, которая чуть темнит пол у их подножия
+function buildAOOverlay() {
+  const PX = 8, S = W * T * PX, cell = T * PX;
+  let a = new Float32Array(S * S);
+  for (let ty = 0; ty < W; ty++) for (let tx = 0; tx < W; tx++) {
+    if (grid[ty][tx] === 0) continue;
+    const v = grid[ty][tx] === 2 ? 0.75 : 1;
+    for (let y = ty * cell; y < (ty + 1) * cell; y++) a.fill(v, y * S + tx * cell, y * S + (tx + 1) * cell);
+  }
+  const blur = (src, r, horiz) => {
+    const out = new Float32Array(S * S), inv = 1 / (2 * r + 1);
+    for (let line = 0; line < S; line++) {
+      const at = (i) => horiz ? line * S + i : i * S + line;
+      let acc = 0;
+      for (let i = -r; i <= r; i++) acc += src[at(clamp(i, 0, S - 1))];
+      for (let i = 0; i < S; i++) {
+        out[at(i)] = acc * inv;
+        acc += src[at(Math.min(S - 1, i + r + 1))] - src[at(Math.max(0, i - r))];
+      }
+    }
+    return out;
+  };
+  for (let k = 0; k < 2; k++) { a = blur(a, 6, true); a = blur(a, 6, false); }
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), img = g.createImageData(S, S);
+  for (let i = 0; i < S * S; i++) {
+    const v = Math.round(clamp(a[i] * 1.7, 0, 1) * 255);
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W * T, W * T).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex, transparent: true, opacity: theme.dark ? 0.5 : 0.3, depthWrite: false }));
+  mesh.position.set(W * T / 2, 0.006, W * T / 2); mesh.renderOrder = 1;
+  disposables.push(tex, mesh.geometry, mesh.material);
+  return mesh;
+}
+
+// полосатая «опасная» разметка
+const stripeTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#3d3d40'; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#f2a51e';
+  for (let i = -64; i < 128; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 16, 0); g.lineTo(i + 16 - 64, 64); g.lineTo(i - 64, 64); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+function stripeFrame(size, width) {
+  const g = new THREE.Group(), mat = std(0xffffff, { map: stripeTex, roughness: 0.7 });
+  for (let i = 0; i < 4; i++) {
+    const tex = stripeTex.clone(); tex.repeat.set(size / width, 1); tex.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size, width).rotateX(-Math.PI / 2), mat.clone());
+    m.material.map = tex;
+    const side = new THREE.Group(); side.rotation.y = i * Math.PI / 2; side.add(m);
+    m.position.z = size / 2 - width / 2;
+    m.receiveShadow = true;
+    g.add(side);
+  }
+  g.position.y = 0.012;
+  return g;
+}
+
+// уровень качества графики
+function applyQuality() {
+  const q = settings.quality;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, q === 'low' ? 1 : COARSE ? 1.5 : 2));
+  renderer.setSize(innerWidth, innerHeight);
+  const shadows = q !== 'low';
+  if (renderer.shadowMap.enabled !== shadows) {
+    renderer.shadowMap.enabled = shadows;
+    scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+  }
+  const size = q === 'high' ? (COARSE ? 2048 : 4096) : (COARSE ? 1024 : 2048);
+  if (sun.shadow.mapSize.x !== size) {
+    sun.shadow.mapSize.setScalar(size);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  }
+  post.enabled = q === 'high';
+  post.resize();
+  for (const h of hunters) setupCloak(h);
+}
 
 // ================= аудио (синтез) =================
 const A = { ctx: null };
@@ -662,6 +917,10 @@ function buildPlayer() {
   const helm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 28, 20), MAT.white); head.add(helm);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.13, 32, 1, true), MAT.orange); band.position.y = -0.02; head.add(band);
   const visor = rbox(0.34, 0.1, 0.1, 0.04, MAT.visor); visor.position.set(0, -0.02, 0.26); head.add(visor);
+  // антенна покачивается при ходьбе
+  const antenna = new THREE.Group(); antenna.position.set(0.12, 0.24, -0.04); antenna.rotation.z = -0.25; head.add(antenna);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.24, 6), MAT.dark); rod.position.y = 0.12; antenna.add(rod);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), MAT.glow); tip.position.y = 0.26; antenna.add(tip);
   const limb = (x, y, len, r, mat) => {
     const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p);
     const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat); m.position.y = -len / 2 - r * 0.5; p.add(m);
@@ -674,11 +933,18 @@ function buildPlayer() {
   const xray = new THREE.MeshBasicMaterial({ color: 0xf28a1e, transparent: true, opacity: 0.4, depthWrite: false, depthFunc: THREE.GreaterDepth });
   const meshes = []; g.traverse(o => { if (o.isMesh) meshes.push(o); });
   for (const m of meshes) { m.layers.set(LAYER_PLAYER); const x = new THREE.Mesh(m.geometry, xray); x.layers.set(LAYER_XRAY); m.add(x); }
-  return { g, body, head, armL, armR, legL, legR };
+  return { g, body, head, armL, armR, legL, legR, antenna };
 }
 
+// материалы Охотника — «физические»: на высоком качестве камуфляж преломляет фон, как стелс-поле
+function cloakMat(src) {
+  const m = new THREE.MeshPhysicalMaterial({ color: src.color, roughness: src.roughness, metalness: src.metalness,
+    emissive: src.emissive, emissiveIntensity: src.emissiveIntensity, envMapIntensity: src.envMapIntensity });
+  m.userData = { base: src.color.clone(), rough: src.roughness, emi: src.emissiveIntensity };
+  return m;
+}
 function buildHunter() {
-  const mats = { dark: MAT.dark.clone(), orange: MAT.orange.clone(), grey: MAT.grey.clone(), lamp: MAT.lamp.clone() };
+  const mats = { dark: cloakMat(MAT.dark), orange: cloakMat(MAT.orange), grey: cloakMat(MAT.grey), lamp: cloakMat(MAT.lamp) };
   const g = new THREE.Group();
   const add = (mesh, x, y, z, parent = g) => { mesh.position.set(x, y, z); parent.add(mesh); return mesh; };
   const pelvis = add(rbox(0.5, 0.22, 0.34, 0.06, mats.dark), 0, 0.98, 0);
@@ -701,7 +967,6 @@ function buildHunter() {
   const armL = limb(-0.48, 1.6, 0.9, 0.06, mats.dark), armR = limb(0.48, 1.6, 0.9, 0.06, mats.dark);
   for (const a of [armL, armR]) add(rbox(0.16, 0.2, 0.16, 0.04, mats.orange), 0, -0.95, 0, a);
   shadowAll(g);
-  for (const m of Object.values(mats)) { m.transparent = true; }
   const meshes = []; g.traverse(o => { if (o.isMesh) meshes.push(o); });
   return { g, head, legL, legR, armL, armR, mats, meshes, grill, torso, pelvis };
 }
@@ -768,6 +1033,7 @@ function buildDecoy(scale = 1) {
 }
 
 const playerModel = buildPlayer();
+const playerBlob = makeBlob(1.0, 0.42);
 
 // ================= уровень =================
 const level = new THREE.Group(); scene.add(level);
@@ -814,8 +1080,11 @@ function buildLevel(def) {
   clearPings();
   exitObj = null;
 
+  applyTheme(THEMES[Math.max(0, LEVELS.indexOf(def))] || THEMES[0]);
+  dust.list.length = sparks.list.length = 0;
   grid = genMaze(def.cells); W = grid.length;
   hgt = grid.map((row, y) => row.map((v, x) => (x === 0 || y === 0 || x === W - 1 || y === W - 1) ? 2 : Math.random() < 0.15 ? 2 : 1));
+  const [tr, tg, tb] = theme.tint;
 
   // стены из скруглённых кубов 1x1 — как в диораме
   const cubes = [];
@@ -832,8 +1101,9 @@ function buildLevel(def) {
   const m = new THREE.Matrix4(), col = new THREE.Color();
   cubes.forEach(([x, y, z, l], i) => {
     m.makeTranslation(x, y, z); walls.setMatrixAt(i, m);
-    const v = 0.56 + Math.random() * 0.05 + l * 0.03;
-    walls.setColorAt(i, col.setRGB(v, v, v * 0.985));
+    // нижний ряд кубиков чуть темнее — свет у пола гаснет
+    const v = (theme.wall[0] + Math.random() * (theme.wall[1] - theme.wall[0])) * (l === 0 ? 0.93 : 1.02);
+    walls.setColorAt(i, col.setRGB(v * tr, v * tg, v * tb));
   });
   walls.castShadow = walls.receiveShadow = true;
   walls.frustumCulled = false;
@@ -844,18 +1114,21 @@ function buildLevel(def) {
   const floor = new THREE.InstancedMesh(GEO.slab, MAT.block, slabs.length);
   slabs.forEach(([x, y], i) => {
     m.makeTranslation((x + 0.5) * T, -0.15, (y + 0.5) * T); floor.setMatrixAt(i, m);
-    const v = ((x + y) % 2 ? 0.6 : 0.55) + Math.random() * 0.02;
-    floor.setColorAt(i, col.setRGB(v, v, v * 0.985));
+    const v = ((x + y) % 2 ? theme.floor[0] : theme.floor[1]) + Math.random() * 0.02;
+    floor.setColorAt(i, col.setRGB(v * tr, v * tg, v * tb));
   });
   floor.receiveShadow = true; floor.frustumCulled = false;
   level.add(floor); disposables.push(floor);
-  const base = new THREE.Mesh(new THREE.BoxGeometry(W * T + 0.1, 1.4, W * T + 0.1), std(0x9a9a95));
+  const base = new THREE.Mesh(new THREE.BoxGeometry(W * T + 0.1, 1.4, W * T + 0.1), std(theme.base));
   base.position.set(W * T / 2, -1.0, W * T / 2); base.receiveShadow = true;
-  level.add(base); disposables.push(base.geometry);
+  level.add(base); disposables.push(base.geometry, base.material);
+  level.add(buildAOOverlay());
 
   for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (grid[y][x] === 2) {
     const c = buildCrate(); c.position.x = (x + 0.5) * T; c.position.z = (y + 0.5) * T; c.rotation.y = rand(-0.15, 0.15); level.add(c);
+    if (theme.props.includes('stripes')) { const f = stripeFrame(1.9, 0.22); f.position.x = c.position.x; f.position.z = c.position.z; level.add(f); }
   }
+  buildProps();
   // ракеты на стенах — декор
   for (let k = 0; k < W / 2; k++) {
     const x = 1 + (Math.random() * (W - 2) | 0), y = 1 + (Math.random() * (W - 2) | 0);
@@ -878,11 +1151,14 @@ function buildLevel(def) {
 
   hunterCells.forEach((c, i) => {
     const model = buildHunter(); level.add(model.g);
-    hunters.push({
+    const blob = makeBlob(1.6, theme.dark ? 0.6 : 0.4); level.add(blob);
+    const h = {
       x: (c.x + 0.5) * T, z: (c.y + 0.5) * T, state: 'idle', timer: 4 + i * 3, path: [], pi: 0, repath: 0, stepT: 0,
       growlT: rand(4, 9), anim: rand(0, 6), rot: rand(0, 6), sees: false, lastKnown: null, lastGhost: -9, farT: 0, waitT: 0,
-      speedNow: 0, vis: 0, model,
-    });
+      speedNow: 0, vis: 0, model, blob,
+    };
+    setupCloak(h);
+    hunters.push(h);
   });
 
   // турели — на стенах рядом с проходами
@@ -908,6 +1184,59 @@ function buildLevel(def) {
   }
 
   level.add(playerModel.g);
+  playerBlob.material.opacity = theme.dark ? 0.6 : 0.42;
+  level.add(playerBlob);
+}
+
+// трубы вдоль низких стен и лампы на стенах — по теме уровня
+function buildProps() {
+  const P = theme.props;
+  if (P.includes('pipes')) {
+    const pipe = (x0, z0, x1, z1) => {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const g = new THREE.Group(); g.position.set((x0 + x1) / 2, 1.13, (z0 + z1) / 2);
+      g.rotation.y = Math.atan2(x1 - x0, z1 - z0);
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, len, 14), MAT.metal); tube.rotation.x = Math.PI / 2; g.add(tube);
+      for (let s = -len / 2 + 0.5; s < len / 2; s += 1.5) {
+        const br = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.12, 0.14), MAT.dark); br.position.set(0, -0.09, s); g.add(br);
+      }
+      if (Math.random() < 0.5) {
+        const valve = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.035, 6, 16), MAT.orange); valve.position.set(0, 0.2, rand(-len / 3, len / 3)); valve.rotation.x = Math.PI / 2; g.add(valve);
+      }
+      level.add(shadowAll(g));
+    };
+    // ищем ровные ряды низких стен длиной от 3 клеток
+    for (let y = 1; y < W - 1; y++) {
+      let run = 0;
+      for (let x = 1; x <= W - 1; x++) {
+        const ok = x < W - 1 && grid[y][x] === 1 && hgt[y][x] === 1;
+        if (ok) run++;
+        else { if (run >= 3 && Math.random() < 0.35) pipe((x - run) * T + 0.3, (y + 0.5) * T, x * T - 0.3, (y + 0.5) * T); run = 0; }
+      }
+    }
+    for (let x = 1; x < W - 1; x++) {
+      let run = 0;
+      for (let y = 1; y <= W - 1; y++) {
+        const ok = y < W - 1 && grid[y][x] === 1 && hgt[y][x] === 1;
+        if (ok) run++;
+        else { if (run >= 3 && Math.random() < 0.25) pipe((x + 0.5) * T, (y - run) * T + 0.3, (x + 0.5) * T, y * T - 0.3); run = 0; }
+      }
+    }
+  }
+  if (P.includes('lamps')) {
+    for (let y = 1; y < W - 1; y++) for (let x = 1; x < W - 1; x++) {
+      if (grid[y][x] !== 1 || Math.random() > 0.12) continue;
+      const open = DIRS.filter(([dx, dy]) => grid[y + dy][x + dx] === 0);
+      if (!open.length) continue;
+      const [dx, dy] = open[Math.random() * open.length | 0];
+      const g = new THREE.Group();
+      g.position.set((x + 0.5) * T + dx * (T / 2 + 0.03), 0.72, (y + 0.5) * T + dy * (T / 2 + 0.03));
+      g.rotation.y = Math.atan2(dx, dy);
+      const housing = rbox(0.42, 0.24, 0.08, 0.03, MAT.dark); g.add(housing);
+      const light = rbox(0.32, 0.14, 0.06, 0.03, MAT.lampWarm); light.position.z = 0.03; g.add(light);
+      level.add(g);
+    }
+  }
 }
 
 // ================= состояние =================
@@ -1005,6 +1334,7 @@ function updateTurrets(dt) {
       t.pending.t -= dt;
       if (t.pending.t <= 0) {
         emitRing(t.x, t.z, CFG.ring.alarm, 'alarm', t.pending.origin);
+        FX.burst(t.x, t.g.position.y + 0.8, t.z, 14, 0xff4a2a);
         sfx.siren(t.x, t.z);
         flashAlert('ТУРЕЛЬ ПОДНЯЛА ТРЕВОГУ');
         t.pending = null; t.cd = 5;
@@ -1105,6 +1435,7 @@ function updateHunter(h, dt) {
       h.stepT -= 1;
       const chase = h.state === 'chase';
       sfx.hunterStep(h.x, h.z, chase ? 0.8 : 0.45);
+      if (h.vis > 0.3) FX.dust(h.x, h.z, 2);
       emitRing(h.x, h.z, CFG.ring.hunterStep + (chase ? 1.2 : 0), 'hunter', null, 0.025);
     }
   }
@@ -1128,10 +1459,35 @@ function animateHunter(h, dt, speed) {
   const d = Math.hypot(h.x - player.x, h.z - player.z);
   const target = state === 'dead' && h === catcher ? 1 : clamp((5 - d) / 2.5, 0, 1);
   h.vis += (target - h.vis) * Math.min(1, dt * 6);
-  const op = 0.03 + 0.97 * h.vis;
-  for (const m of Object.values(md.mats)) { m.opacity = op; m.depthWrite = h.vis > 0.5; }
-  const cast = h.vis > 0.5;
+  const v = h.vis;
+  for (const m of Object.values(md.mats)) {
+    const u = m.userData;
+    m.emissiveIntensity = u.emi * v;
+    if (h.glass) {
+      // стелс-поле: почти прозрачное «стекло», при сбое камуфляжа — обычный цвет
+      m.transmission = Math.max(0.001, 1 - v);
+      m.color.setRGB(1, 1, 1).lerp(u.base, v);
+      m.roughness = 0.1 + (u.rough - 0.1) * v;
+      m.specularIntensity = 0.35 + 0.65 * v;
+    } else {
+      m.opacity = 0.03 + 0.97 * v; m.depthWrite = v > 0.5;
+    }
+  }
+  const cast = v > 0.5;
   for (const m of md.meshes) m.castShadow = cast;
+  h.blob.position.set(h.x, 0.012, h.z);
+  h.blob.material.opacity = h.blob.userData.base * v;
+}
+function setupCloak(h) {
+  h.glass = settings.quality === 'high';
+  for (const m of Object.values(h.model.mats)) {
+    m.transparent = !h.glass;
+    m.opacity = 1; m.depthWrite = true;
+    m.transmission = h.glass ? 0.999 : 0;
+    m.ior = 1.12; m.thickness = 0.35;
+    m.color.copy(m.userData.base); m.roughness = m.userData.rough;
+    m.needsUpdate = true;
+  }
 }
 
 // ================= игрок =================
@@ -1180,7 +1536,10 @@ function updateThrown(dt) {
     const floor = solidHeight(o.x, o.z) + 0.12;
     if (o.y < floor) {
       o.y = floor; o.vy = Math.abs(o.vy) * 0.3; o.vx *= 0.5; o.vz *= 0.5;
-      if (!o.landed) { o.landed = true; emitRing(o.x, o.z, CFG.ring.decoy, 'decoy', null, floor - 0.08); sfx.decoyHit(o.x, o.z); }
+      if (!o.landed) {
+        o.landed = true; emitRing(o.x, o.z, CFG.ring.decoy, 'decoy', null, floor - 0.08); sfx.decoyHit(o.x, o.z);
+        FX.dust(o.x, o.z, 6); FX.burst(o.x, floor + 0.1, o.z, 6, 0xffa424);
+      }
     }
     if (o.landed) o.t += dt;
     o.g.position.set(o.x, o.y, o.z); o.g.rotation.x += dt * 8;
@@ -1217,6 +1576,7 @@ function updatePlayer(dt) {
       player.stepT -= 1;
       if (!player.crouch) {
         sfx.step(running);
+        if (running) FX.dust(player.x, player.z, 3);
         emitRing(player.x, player.z, running ? CFG.ring.run : CFG.ring.walk, 'step');
       }
     }
@@ -1230,10 +1590,12 @@ function updatePlayer(dt) {
   for (let i = cells.length - 1; i >= 0; i--) {
     const c = cells[i];
     c.core.rotation.y += dt * 1.6; c.core.position.y = 0.8 + Math.sin(time * 2.2 + i) * 0.1;
+    if (Math.random() < dt * 3) FX.mote(c.x, 0.5, c.z, 0xf28a1e);
     if (Math.hypot(c.x - player.x, c.z - player.z) < 0.9) {
       level.remove(c.g); cells.splice(i, 1); removePing(c);
       player.got++;
       sfx.chime();
+      FX.burst(c.x, 0.9, c.z, 18, 0xf2a51e);
       emitRing(player.x, player.z, CFG.ring.chime, 'chime');
       if (player.got >= L.cellsN) openExit();
       else showMsg(`ЯЧЕЙКА ${player.got} / ${L.cellsN}`, 1.6);
@@ -1249,6 +1611,7 @@ function updatePlayer(dt) {
   }
   if (exitObj) {
     exitObj.ring.position.y = 0.4 + Math.sin(time * 2) * 0.3;
+    if (Math.random() < dt * 8) FX.mote(exitObj.x, 0.2, exitObj.z, 0xffb347);
     exitObj.ring.rotation.z += dt;
     if (Math.hypot(exitObj.x - player.x, exitObj.z - player.z) < 1.1) win();
   }
@@ -1278,13 +1641,20 @@ function animatePlayer(dt, running) {
   p.g.position.set(player.x, 0, player.z);
   p.g.rotation.y = player.rot;
   const crouchK = player.crouch ? 0.82 : 1;
-  p.body.scale.y += (crouchK - p.body.scale.y) * Math.min(1, dt * 10);
+  player.crouchS = (player.crouchS ?? 1) + (crouchK - (player.crouchS ?? 1)) * Math.min(1, dt * 10);
+  // мягкое «сплющивание» на каждом шаге — игрушечная походка
+  const squash = Math.abs(Math.cos(player.anim)) * mv;
+  p.body.scale.set(1 + squash * 0.04, player.crouchS * (1 - squash * 0.06), 1 + squash * 0.04);
   p.body.position.y = Math.abs(sw) * 0.05 * mv;
   p.legL.rotation.x = sw * 0.7 * mv; p.legR.rotation.x = -sw * 0.7 * mv;
   p.armL.rotation.x = -sw * 0.6 * mv; p.armR.rotation.x = sw * 0.6 * mv;
-  p.body.rotation.x = running ? 0.18 : 0;
+  p.body.rotation.x += ((running ? 0.18 : 0) - p.body.rotation.x) * Math.min(1, dt * 10);
+  p.antenna.rotation.x = -Math.sin(player.anim * 2) * 0.25 * mv - (running ? 0.35 : 0) + Math.sin(time * 2) * 0.04;
   const s = player.charging ? 1 + player.charge * 0.08 + Math.sin(time * 30) * 0.01 : 1;
   p.head.scale.setScalar(s);
+  playerBlob.position.set(player.x, 0.012, player.z);
+  const bs = player.crouchS * (1 - squash * 0.08);
+  playerBlob.scale.set(bs, 1, bs);
 }
 
 function openExit() {
@@ -1295,6 +1665,7 @@ function openExit() {
   const c = center(best);
   const g = new THREE.Group();
   const pad = rbox(1.7, 0.12, 1.7, 0.05, MAT.glow); pad.position.y = 0.06; pad.receiveShadow = true; g.add(pad);
+  g.add(stripeFrame(2.3, 0.24));
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 16, 28, 1, true),
     new THREE.MeshBasicMaterial({ color: 0xf28a1e, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
   beam.position.y = 8; g.add(beam);
@@ -1530,7 +1901,8 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
 function saveSettings() { store.set('echo_settings', settings); }
 function syncSettingsUI() {
   $('optVol').value = settings.volume;
-  $('optShadows').classList.toggle('on', settings.shadows);
+  document.querySelectorAll('#optQuality button').forEach(b => b.classList.toggle('on', b.dataset.q === settings.quality));
+  $('optTilt').classList.toggle('on', settings.tilt);
   $('optShake').classList.toggle('on', settings.shake);
   $('optHints').classList.toggle('on', settings.hints);
   $('optJoySize').value = settings.joyScale;
@@ -1540,11 +1912,10 @@ $('optJoyEdit').onclick = () => { sfx.click(); show('layout'); };
 $('layoutDone').onclick = () => { sfx.click(); saveSettings(); show('settings'); };
 $('layoutReset').onclick = () => { sfx.click(); Object.assign(settings, JOY_DEFAULT); applyJoyLayout(); syncSettingsUI(); saveSettings(); };
 $('optVol').oninput = (e) => { settings.volume = +e.target.value; if (A.master) A.master.gain.value = settings.volume / 100; saveSettings(); };
-$('optShadows').onclick = () => {
-  settings.shadows = !settings.shadows; renderer.shadowMap.enabled = settings.shadows;
-  scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
-  syncSettingsUI(); saveSettings();
-};
+document.querySelectorAll('#optQuality button').forEach(b => b.onclick = () => {
+  sfx.click(); settings.quality = b.dataset.q; applyQuality(); syncSettingsUI(); saveSettings();
+});
+$('optTilt').onclick = () => { settings.tilt = !settings.tilt; syncSettingsUI(); saveSettings(); };
 $('optShake').onclick = () => { settings.shake = !settings.shake; syncSettingsUI(); saveSettings(); };
 $('optHints').onclick = () => { settings.hints = !settings.hints; syncSettingsUI(); saveSettings(); };
 // подтверждение вторым нажатием (системные confirm() работают не везде)
@@ -1755,6 +2126,8 @@ function tick(dt) {
   }
   if (state !== 'paused') {
     updateRings();
+    updateParticles(dust, dt);
+    updateParticles(sparks, dt);
     for (let i = ghosts.length - 1; i >= 0; i--) {
       const g = ghosts[i]; g.t += dt; g.m.opacity = 0.6 * Math.max(0, 1 - g.t / 2.5);
       if (g.t > 2.5) { level.remove(g.g); g.m.dispose(); ghosts.splice(i, 1); }
@@ -1764,19 +2137,26 @@ function tick(dt) {
   if (state === 'playing' || state === 'paused') updatePings(state === 'playing' ? dt : 0);
   render();
 }
-// 1) мир; 2) силуэт робота там, где его закрывает мир; 3) сам робот
+// 1) мир; 2) силуэт робота там, где его закрывает мир; 3) сам робот.
+// На высоком качестве всё это рисуется в текстуру, а затем идёт постобработка.
 function render() {
-  renderer.clear();
   renderer.shadowMap.needsUpdate = true;
+  renderer.setRenderTarget(post.enabled ? post.rt : null);
+  renderer.clear();
   camera.layers.set(0); renderer.render(scene, camera);
   camera.layers.set(LAYER_XRAY); renderer.render(scene, camera);
   camera.layers.set(LAYER_PLAYER); renderer.render(scene, camera);
+  if (post.enabled) {
+    _v.set(player.x, 0.6, player.z).project(camera);
+    post.finish(clamp(_v.y * 0.5 + 0.5, 0.2, 0.8));
+  }
 }
 
 buildLevel(LEVELS[0]);
 resetPlayer();
+applyQuality();
 frame();
-window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
+window.__echo = { player, hunters, cells, turrets, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } };
 </script>
 </body>
 </html>
