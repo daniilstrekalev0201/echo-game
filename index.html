@@ -3270,7 +3270,7 @@ function snapshot(w, h, type = 'image/jpeg') {
 }
 // Отладочный доступ из консоли (window.__echo) — только у админа и в локальной копии игры;
 // у обычных игроков на сайте его нет.
-const debugApi = () => ({ A, initAudio, capture: snapshot, emitRing, stunHunter, cam, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } });
+const debugApi = () => ({ A, initAudio, capture: snapshot, emitRing, stunHunter, cam, player, hunters, cells, turrets, guns, jets, doors, lockers, blackout, dbg, SKINS, applySkin, fireWater, keys, LEVELS, startLevel, renderer, post, settings, applyQuality, watchPerf, findPath, step(n) { for (let i = 0; i < n; i++) tick(1 / 60); }, get state() { return state; }, get exit() { return exitObj; } });
 function exposeDebug() {
   if (isAdmin || location.protocol === "file:" || location.protocol === "data:" || ["localhost", "127.0.0.1"].includes(location.hostname)) window.__echo = debugApi();
   else delete window.__echo;
