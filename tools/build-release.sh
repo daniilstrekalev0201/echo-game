@@ -2,9 +2,13 @@
 # Собирает автономную версию игры для игровых площадок (itch.io и др.):
 # three.js и шрифты кладутся рядом с index.html, интернет игре не нужен.
 # Результат: release/echo-web/ (папка) и release/echo-web.zip (её архив для загрузки).
+#   bash tools/build-release.sh          — версия для itch.io и сайтов
+#   bash tools/build-release.sh yandex   — версия для Яндекс Игр (с их SDK): release/echo-yandex.zip
 set -euo pipefail
 cd "$(dirname "$0")/.."
-OUT=release/echo-web
+TARGET=${1:-web}
+case "$TARGET" in web|yandex) ;; *) echo "Неизвестная сборка: $TARGET (нужно web или yandex)" >&2; exit 1 ;; esac
+OUT=release/echo-$TARGET
 THREE=https://cdn.jsdelivr.net/npm/three@0.160.0
 UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
@@ -51,6 +55,13 @@ sed -e 's|https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js|./lib
     -e 's|<link href="https://fonts.googleapis.com/css2?[^"]*" rel="stylesheet">|<link href="./fonts/fonts.css" rel="stylesheet">|' \
     index.html > "$OUT/index.html"
 
+# Яндекс Игры: SDK отдаёт сама площадка по адресу /sdk.js; флаг включает рекламу, облачные сохранения
+# и прочую интеграцию в коде игры (см. «платформа: Яндекс Игры» в index.html)
+if [ "$TARGET" = yandex ]; then
+  sed -i 's|^<script type="importmap">|<script src="/sdk.js"></script>\n<script>window.__ECHO_PLATFORM = '"'yandex'"';</script>\n<script type="importmap">|' "$OUT/index.html"
+  grep -q "__ECHO_PLATFORM = 'yandex'" "$OUT/index.html" || { echo "ОШИБКА: не удалось подключить SDK Яндекса" >&2; exit 1; }
+fi
+
 cat > "$OUT/LICENSES.txt" <<'TXT'
 ЭХО — браузерная игра.
 Использованы сторонние компоненты:
@@ -65,5 +76,5 @@ if grep -n 'fonts.gstatic' "$OUT/fonts/fonts.css"; then echo "ОШИБКА: в f
 n=$(ls "$OUT/fonts"/*.woff2 | wc -l); [ "$n" -ge 5 ] || { echo "ОШИБКА: скачалось шрифтов: $n" >&2; exit 1; }
 
 # архив для загрузки: index.html должен лежать в корне архива
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w tools/zip-release.ps1)" -Source "$(cygpath -w "$OUT")" -Destination "$(cygpath -wa release)\\echo-web.zip"
-echo "Готово: $OUT и release/echo-web.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w tools/zip-release.ps1)" -Source "$(cygpath -w "$OUT")" -Destination "$(cygpath -wa release)\\echo-$TARGET.zip"
+echo "Готово: $OUT и release/echo-$TARGET.zip"

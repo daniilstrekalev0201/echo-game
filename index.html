@@ -551,6 +551,7 @@ const EN = {
   'Совет: присядь ({0}), когда Охотник рядом — так тише и сердце успокаивается.': 'Tip: crouch ({0}) when a Hunter is near — it is quieter and calms your heart.',
   'кнопка «Присесть»': 'the "Crouch" button', 'Отладка включена — прогресс не записан.': 'Debug was on — progress not saved.',
   'Далее': 'Next', 'Заново': 'Retry', 'Уровни': 'Levels',
+  'Ещё шанс (реклама)': 'Second chance (ad)', 'ЕЩЁ ШАНС — ОХОТНИКИ РАЗБЕЖАЛИСЬ': 'SECOND CHANCE — THE HUNTERS SCATTERED',
   // выбор уровня и скины
   'ЗАКРЫТО': 'LOCKED', 'лучшее {0}': 'best {0}', '{0} ячеек · {1} охот.': '{0} cells · {1} hunters',
   'шкафы': 'lockers', 'вода': 'water', 'турели': 'turrets', 'двери': 'doors', '+охотники': '+hunters', 'блэкаут': 'blackout',
@@ -737,14 +738,14 @@ function updateBlackout(dt) {
   }
   const target = blackout.phase === 'dark' ? 1 : blackout.phase === 'flicker' ? (Math.sin(time * 37) > 0.2 ? 0.85 : 0.1) : 0;
   blackout.k += (target - blackout.k) * Math.min(1, dt * (blackout.phase === 'flicker' ? 30 : 2.5));
-  const k = blackout.k, t = theme;
-  hemi.intensity = t.hemi * (1 - k) + 0.012 * k;
-  sun.intensity = t.sun * (1 - k) + 0.02 * k;
+  const k = blackout.k, th = theme;   // не «t» — так называется функция перевода
+  hemi.intensity = th.hemi * (1 - k) + 0.012 * k;
+  sun.intensity = th.sun * (1 - k) + 0.02 * k;
   renderer.toneMappingExposure = 1 - 0.5 * k;
-  _bg.set(t.bg).lerp(_night, k); renderer.setClearColor(_bg); scene.fog.color.copy(_bg);
-  MAT.lampWarm.emissiveIntensity = (t.lampGlow || 0.8) * (1 + 1.5 * k);
+  _bg.set(th.bg).lerp(_night, k); renderer.setClearColor(_bg); scene.fog.color.copy(_bg);
+  MAT.lampWarm.emissiveIntensity = (th.lampGlow || 0.8) * (1 + 1.5 * k);
   playerLight.intensity = 9 * k; playerLight.position.set(player.x, 2.6, player.z);
-  document.body.classList.toggle('darkLevel', !!t.dark || k > 0.5);
+  document.body.classList.toggle('darkLevel', !!th.dark || k > 0.5);
   for (const s of sonarLights) {
     if (s.t <= 0) { s.l.intensity = 0; continue; }
     s.t -= dt;
@@ -1896,22 +1897,22 @@ function turretHear(t, origin) {
   sfx.servo(t.x, t.z);
 }
 function updateTurrets(dt) {
-  for (const t of turrets) {
-    t.cd = Math.max(0, t.cd - dt);
-    let diff = Math.atan2(Math.sin(t.aim - t.head.rotation.y), Math.cos(t.aim - t.head.rotation.y));
-    t.head.rotation.y += diff * Math.min(1, dt * 6);
-    if (t.pending) {
-      t.pending.t -= dt;
-      if (t.pending.t <= 0) {
-        emitRing(t.x, t.z, CFG.ring.alarm, 'alarm', t.pending.origin);
-        FX.burst(t.x, t.g.position.y + 0.8, t.z, 14, 0xff4a2a);
-        sfx.siren(t.x, t.z);
+  for (const tu of turrets) {
+    tu.cd = Math.max(0, tu.cd - dt);
+    let diff = Math.atan2(Math.sin(tu.aim - tu.head.rotation.y), Math.cos(tu.aim - tu.head.rotation.y));
+    tu.head.rotation.y += diff * Math.min(1, dt * 6);
+    if (tu.pending) {
+      tu.pending.t -= dt;
+      if (tu.pending.t <= 0) {
+        emitRing(tu.x, tu.z, CFG.ring.alarm, 'alarm', tu.pending.origin);
+        FX.burst(tu.x, tu.g.position.y + 0.8, tu.z, 14, 0xff4a2a);
+        sfx.siren(tu.x, tu.z);
         flashAlert(t('ТУРЕЛЬ ПОДНЯЛА ТРЕВОГУ'));
-        t.pending = null; t.cd = 5;
+        tu.pending = null; tu.cd = 5;
       }
     }
-    t.lamp.material.emissiveIntensity = t.cd > 2.5 ? (Math.sin(time * 20) > 0 ? 3 : 0.2) : 1.0;
-    if (!t.pending && t.cd <= 0) t.aim += dt * 0.4;
+    tu.lamp.material.emissiveIntensity = tu.cd > 2.5 ? (Math.sin(time * 20) > 0 ? 3 : 0.2) : 1.0;
+    if (!tu.pending && tu.cd <= 0) tu.aim += dt * 0.4;
   }
 }
 
@@ -2123,9 +2124,9 @@ function throwDecoy(target) {
   if (player.decoys <= 0) { showMsg(t('НЕТ ПРИМАНОК'), 1); return; }
   const a = target || aimPoint(); if (!a) return;
   player.decoys--;
-  const g = buildDecoy(0.9), y0 = 0.9, t = 0.45 + a.d / 16;
-  const o = { x: player.x, y: y0, z: player.z, vx: (a.x - player.x) / t, vz: (a.z - player.z) / t,
-    vy: (0.12 - y0 + 0.5 * CFG.gravity * t * t) / t, landed: false, t: 0, g };
+  const g = buildDecoy(0.9), y0 = 0.9, ft = 0.45 + a.d / 16;   // время полёта (не «t» — это функция перевода)
+  const o = { x: player.x, y: y0, z: player.z, vx: (a.x - player.x) / ft, vz: (a.z - player.z) / ft,
+    vy: (0.12 - y0 + 0.5 * CFG.gravity * ft * ft) / ft, landed: false, t: 0, g };
   g.position.set(o.x, o.y, o.z); level.add(g);
   thrown.push(o);
   faceTo(player, a.x - player.x, a.z - player.z, 1, 99);
@@ -2504,7 +2505,7 @@ function win() {
     const rec = progress.levels[levelIdx] || {};
     progress.levels[levelIdx] = { stars: Math.max(rec.stars || 0, stars), time: rec.time ? Math.min(rec.time, playTime) : playTime };
     progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, levelIdx + 2));
-    store.set('echo_progress', progress);
+    saveProgress();
   }
   showResult(true, stars);
   if (dbg.used) $('rGoals').innerHTML += '<br><span style="color:var(--dim)">' + t('Отладка включена — прогресс не записан.') + '</span>';
@@ -2523,9 +2524,11 @@ function showResult(won, stars = 0) {
     : `${t('Ячейки: <b>{0} / {1}</b><br>Время: <b>{2}</b>', player.got, L.cellsN, fmt(playTime))}<br><span style="color:var(--dim)">${t('Совет: присядь ({0}), когда Охотник рядом — так тише и сердце успокаивается.', touchMode ? t('кнопка «Присесть»') : bindLabel('crouch'))}</span>`;
   const btns = $('rButtons'); btns.innerHTML = '';
   const mk = (text, cls, fn) => { const b = document.createElement('button'); b.className = 'b ' + cls; b.textContent = text; b.onclick = () => { sfx.click(); fn(); }; btns.appendChild(b); };
-  if (won && !last) mk(t('Далее'), 'primary', () => startLevel(levelIdx + 1));
-  mk(t('Заново'), won && !last ? '' : 'primary', () => startLevel(levelIdx));
-  mk(t('Уровни'), '', () => { toMenu(); show('levels'); });
+  if (!won && YA.sdk && !YA.revived) mk(t('Ещё шанс (реклама)'), 'primary', () => showRewarded(revive));
+  if (won && !last) mk(t('Далее'), 'primary', () => withInterstitial(() => startLevel(levelIdx + 1)));
+  mk(t('Заново'), (won && !last) || (YA.sdk && !YA.revived) ? '' : 'primary', () => withInterstitial(() => startLevel(levelIdx)));
+  mk(t('Уровни'), '', () => withInterstitial(() => { toMenu(); show('levels'); }));
+  gameplay(false);
   show('result');
 }
 
@@ -2578,7 +2581,7 @@ function renderSkins() {
     const hex = (c) => '#' + c.toString(16).padStart(6, '0');
     b.innerHTML = `<div class="sw" style="background:${hex(s.helm)}"><i style="background:${hex(s.band)}"></i></div>${t(s.name)}` +
       `<span class="req">${open ? t(s === skin ? 'выбран' : 'открыт') : t('нужно ★ {0}', s.stars)}</span>`;
-    if (open) b.onclick = () => { sfx.click(); applySkin(s); settings.skin = s.id; saveSettings(); renderSkins(); };
+    if (open) b.onclick = () => { sfx.click(); applySkin(s); settings.skin = s.id; saveSettings(); cloudSave(); renderSkins(); };
     gEl.appendChild(b);
   }
 }
@@ -2587,6 +2590,7 @@ const ADMIN_HASH = '22422c7bc047dacf7a07158de7350efced828f4348db43cf367253c9ced5
 let isAdmin = store.get('echo_admin', false) === true;
 let titleTaps = [];
 $('lvlTitle').addEventListener('click', () => {
+  if (ON_YANDEX) return;   // в версии для Яндекс Игр админ-режима нет
   const now = performance.now();
   titleTaps = titleTaps.filter(t => now - t < 2000).concat(now);
   if (titleTaps.length >= 5 && !isAdmin) {
@@ -2632,9 +2636,95 @@ $('dbgCells').onclick = () => {
 };
 $('dbgWin').onclick = () => { sfx.click(); dbg.used = true; win(); };
 $('dbgDark').onclick = () => { sfx.click(); startBlackout(); resume(); };
+// ================= платформа: Яндекс Игры =================
+// В сборке для Яндекса tools/build-release.sh подключает их SDK (/sdk.js) и ставит
+// window.__ECHO_PLATFORM = 'yandex'. В остальных версиях всё ниже ничего не делает.
+const ON_YANDEX = window.__ECHO_PLATFORM === 'yandex';
+const YA = { sdk: null, player: null, adOpen: false, revived: false };
+let cloudTimer = 0;
+// прогресс и выбранная раскраска хранятся ещё и в облаке Яндекса (не теряются при смене устройства)
+function cloudSave() {
+  if (!YA.player) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => { YA.player.setData({ progress, skin: settings.skin || 'std' }, false).catch(() => {}); }, 800);
+}
+function saveProgress() { store.set('echo_progress', progress); cloudSave(); }
+function mergeProgress(cloud) {
+  if (!cloud || !cloud.levels) return;
+  progress.unlocked = Math.max(progress.unlocked, cloud.unlocked || 1);
+  for (const [i, r] of Object.entries(cloud.levels)) {
+    const mine = progress.levels[i];
+    progress.levels[i] = mine ? { stars: Math.max(mine.stars || 0, r.stars || 0), time: Math.min(mine.time || Infinity, r.time || Infinity) } : r;
+  }
+}
+async function initYandex() {
+  if (!ON_YANDEX || !window.YaGames) return;
+  try {
+    YA.sdk = await window.YaGames.init();
+    // язык Яндекса, если игрок сам не выбирал
+    const lang = YA.sdk.environment && YA.sdk.environment.i18n && YA.sdk.environment.i18n.lang;
+    if (lang && !savedSettings.lang) applyLang(['ru', 'be', 'kk', 'uk', 'uz'].includes(lang) ? 'ru' : 'en');
+    try {
+      YA.player = await YA.sdk.getPlayer({ scopes: false });
+      const data = await YA.player.getData(['progress', 'skin']);
+      mergeProgress(data.progress);
+      store.set('echo_progress', progress);
+      const s = data.skin && SKINS.find(k => k.id === data.skin);
+      if (s && totalStars() >= s.stars) { applySkin(s); settings.skin = s.id; }
+      cloudSave();
+    } catch {}
+    YA.sdk.features && YA.sdk.features.LoadingAPI && YA.sdk.features.LoadingAPI.ready();
+  } catch (e) { console.warn('Yandex SDK:', e); }
+}
+function gameplay(on) {
+  try { const g = YA.sdk && YA.sdk.features && YA.sdk.features.GameplayAPI; if (g) on ? g.start() : g.stop(); } catch {}
+}
+function muteForAd(on) {
+  YA.adOpen = on;
+  if (A.master) A.master.gain.value = on ? 0 : settings.volume / 100;
+}
+// реклама между уровнями: частоту показа Яндекс ограничивает сам, поэтому просим её при каждом переходе
+function withInterstitial(next) {
+  if (!YA.sdk) { next(); return; }
+  let done = false;
+  const finish = () => { if (done) return; done = true; muteForAd(false); next(); };
+  try {
+    YA.sdk.adv.showFullscreenAdv({ callbacks: { onOpen: () => { muteForAd(true); gameplay(false); }, onClose: finish, onError: finish, onOffline: finish } });
+  } catch { finish(); }
+}
+function showRewarded(onReward) {
+  if (!YA.sdk) return;
+  let rewarded = false;
+  try {
+    YA.sdk.adv.showRewardedVideo({ callbacks: {
+      onOpen: () => muteForAd(true),
+      onRewarded: () => { rewarded = true; },
+      onClose: () => { muteForAd(false); if (rewarded) onReward(); },
+      onError: () => muteForAd(false),
+    } });
+  } catch { muteForAd(false); }
+}
+// «Ещё шанс» за рекламу: робот возвращается на старт, Охотники расходятся подальше. Один раз за уровень.
+function revive() {
+  YA.revived = true;
+  Object.assign(player, { x: 1.5 * T, z: 1.5 * T, panic: 0, hidden: null, charging: false });
+  playerModel.body.rotation.z = 0;
+  for (const h of hunters) {
+    const c = reinforcementCell();
+    if (c) { h.x = (c.x + 0.5) * T; h.z = (c.y + 0.5) * T; }
+    Object.assign(h, { state: 'wander', path: [], pi: 0, stunT: 0, checkLocker: null, waitT: 0 });
+  }
+  catcher = null; cam.distT = 20; cam.shake = 0;
+  state = 'playing'; show(null); $('hud').classList.remove('hidden');
+  resetPerf(); gameplay(true);
+  showMsg(t('ЕЩЁ ШАНС — ОХОТНИКИ РАЗБЕЖАЛИСЬ'), 2.5);
+}
+
 function startLevel(i) {
   initAudio();
   levelIdx = i;
+  YA.revived = false;
+  gameplay(true);
   buildLevel(LEVELS[i]);
   resetPlayer();
   playTime = 0; wasChased = false; catcher = null; cam.distT = 20; cam.shake = 0; cam.liftT = 0;
@@ -2656,15 +2746,15 @@ function startLevel(i) {
 let introT = 0;
 function pauseGame() {
   if (state !== 'playing') return;
-  state = 'paused'; show('pause');
+  state = 'paused'; show('pause'); gameplay(false);
   sonarHeld = false; player.charging = false;
   for (const k in keys) keys[k] = false;
   $('dbgPanel').hidden = !isAdmin;
   syncDbg();
 }
-function resume() { if (state !== 'paused') return; state = 'playing'; show(null); resetPerf(); }
+function resume() { if (state !== 'paused') return; state = 'playing'; show(null); resetPerf(); gameplay(true); }
 function toMenu() {
-  state = 'menu'; $('hud').classList.add('hidden'); $('vignette').style.opacity = 0;
+  state = 'menu'; $('hud').classList.add('hidden'); $('vignette').style.opacity = 0; gameplay(false);
   buildLevel(LEVELS[0]); resetPlayer(); clearPings(); resetBlackout(false);
   show('mainMenu');
 }
@@ -2778,7 +2868,7 @@ let resetArmed = 0;
 $('optReset').onclick = () => {
   const b = $('optReset');
   if (time - resetArmed > 3) { resetArmed = time; b.textContent = t('Точно? Ещё раз'); return; }
-  progress = { unlocked: 1, levels: {} }; store.set('echo_progress', progress);
+  progress = { unlocked: 1, levels: {} }; saveProgress();
   resetArmed = 0; b.textContent = t('Сброшено');
   setTimeout(() => { b.textContent = t('Сбросить'); }, 1500);
 };
@@ -2963,7 +3053,8 @@ aimCard($('cWater'), fireWater);
 $('btnRotL').onclick = () => { cam.azT += Math.PI / 2; };
 $('btnRotR').onclick = () => { cam.azT -= Math.PI / 2; };
 const fsBtn = $('btnFull');
-if (!document.documentElement.requestFullscreen) fsBtn.remove();
+// на Яндекс Играх полноэкранный режим включает сама площадка
+if (!document.documentElement.requestFullscreen || ON_YANDEX) fsBtn.remove();
 else fsBtn.onclick = () => {
   const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   if (p && p.catch) p.catch(() => {});
@@ -3165,6 +3256,7 @@ resetPlayer();
 applyQuality();
 applyLang(settings.lang);
 { const s = SKINS.find(k => k.id === settings.skin); applySkin(s && (isAdmin || totalStars() >= s.stars) ? s : SKINS[0]); }
+initYandex();
 frame();
 // Снимок кадра нужного размера без интерфейса (для обложки и скриншотов страницы игры)
 function snapshot(w, h, type = 'image/jpeg') {
