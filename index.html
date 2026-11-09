@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>ЭХО</title>
+<title>ЭХО: Тихий побег</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -95,6 +95,7 @@
   .panel.small { max-width: 420px; text-align: center; }
   .title { font: 700 96px/0.9 "Barlow Condensed", sans-serif; letter-spacing: 0.12em; }
   .title span { color: var(--orange); }
+  .subtitle { font: 600 24px/1 "Barlow Condensed", sans-serif; letter-spacing: 0.3em; text-transform: uppercase; margin-top: 8px; }
   #mainMenu .panel { position: relative; }
   .langBtn { position: absolute; top: 16px; right: 16px; font: 600 15px "Barlow Condensed", sans-serif; letter-spacing: 0.08em;
     padding: 6px 12px; border: 2px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; }
@@ -252,7 +253,7 @@
   #layout .row { margin-top: 10px; }
   body.editing #joy, body.editing #btnCrouch { cursor: grab; box-shadow: 0 0 0 3px var(--orange); }
   body.editing #joyHint { opacity: 0; }
-  @media (max-width: 640px) { .title { font-size: 64px; } .panel { padding: 22px 18px; } #hPlayer { width: 180px; } .pname { font-size: 26px; }
+  @media (max-width: 640px) { .title { font-size: 64px; } .subtitle { font-size: 18px; } .panel { padding: 22px 18px; } #hPlayer { width: 180px; } .pname { font-size: 26px; }
     .icard { width: 76px; height: 92px; padding: 6px; } .icard svg { width: 40px; height: 40px; }
     .icard .nm { font-size: 12px; left: 7px; } .icard .num { font-size: 12px; left: 7px; bottom: 22px; }
     #hCards { gap: 8px; } }
@@ -301,6 +302,7 @@
   <div class="panel">
     <button class="langBtn" id="btnLang" type="button"></button>
     <div class="title">ЭХ<span>О</span></div>
+    <div class="subtitle">Тихий побег</div>
     <div class="sub">Охотник невидим и слеп. Но слышит каждый твой шаг.</div>
     <div class="menuCol">
       <button class="b primary" data-go="levels">Играть</button>
@@ -3156,7 +3158,8 @@ function render() {
 // При запуске запоминаем исходные русские тексты (кроме того, что заполняется кодом).
 const EN_TEXT = {
   'ЭХ': 'ECH', 'О': 'O', 'ЭХО-01': 'ECHO-01', 'Сонар': 'Sonar', 'Приманка': 'Decoy', 'Водомёт': 'Water gun',
-  'Охотник невидим и слеп. Но слышит каждый твой шаг.': 'The Hunter is invisible and blind. But it hears every step you take.',
+  'Тихий побег': 'Quiet Escape',
+  'Охотник невидим и слеп. Но слышит каждый твой шаг.':'The Hunter is invisible and blind. But it hears every step you take.',
   'Играть': 'Play', 'Робот': 'Robot', 'Как играть': 'How to play', 'Настройки': 'Settings', 'На весь экран': 'Fullscreen',
   'Уровни': 'Levels', 'Админ': 'Admin', 'Войти': 'Enter', 'Выйти из режима админа': 'Leave admin mode', '← Назад': '← Back',
   'Раскраски открываются звёздами за уровни. Камера показывает ЭХО-01 вживую.': 'Skins unlock with stars from levels. The camera shows ECHO-01 live.',
@@ -3231,7 +3234,7 @@ function applyLang(lang) {
   settings.lang = lang;
   const en = isEn();
   document.documentElement.lang = en ? 'en' : 'ru';
-  document.title = en ? 'ECHO' : 'ЭХО';
+  document.title = en ? 'ECHO: Quiet Escape' : 'ЭХО: Тихий побег';
   for (const { n, ru } of i18nNodes) {
     const key = ru.replace(/\s+/g, ' ').trim();
     n.nodeValue = en && EN_TEXT[key] !== undefined ? ru.replace(ru.trim(), EN_TEXT[key]) : ru;
