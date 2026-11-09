@@ -140,8 +140,6 @@
   .dbgBtns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
   .dbgBtns .b { font-size: 15px; padding: 8px 12px; text-align: center; flex: 1 1 90px; }
   #lvlTitle { user-select: none; }
-  .adminBadge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ink);
-    color: #fff; font-size: 14px; letter-spacing: 0.08em; }
   .adminBox { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
   .adminBox[hidden] { display: none; }
   .adminBox input { flex: 1 1 180px; min-width: 0; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px;
@@ -316,7 +314,7 @@
 
 <div id="levels" class="overlay hidden">
   <div class="panel">
-    <h2 id="lvlTitle">Уровни <span id="adminBadge" class="adminBadge" hidden>Админ</span></h2>
+    <h2 id="lvlTitle">Уровни</h2>
     <div class="lvlGrid" id="lvlGrid"></div>
     <form id="adminBox" class="adminBox" hidden>
       <input id="adminCode" type="password" placeholder="Код администратора" autocomplete="off" aria-label="Код администратора">
@@ -2560,7 +2558,6 @@ function renderLevels() {
     if (!locked) b.onclick = () => { sfx.click(); startLevel(i); };
     gEl.appendChild(b);
   });
-  $('adminBadge').hidden = !isAdmin;
   $('adminExit').hidden = !isAdmin;
   $('adminBox').hidden = true;
 }
